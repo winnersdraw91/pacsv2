@@ -1407,6 +1407,26 @@ export default function DicomViewer() {
                   </Button>
                 </div>
               )}
+
+              {viewMode === "MINIP" && (
+                <div className="flex items-center gap-4 w-full">
+                  <div className="flex items-center gap-3 flex-1">
+                    <span className="text-xs text-slate-400">MINIP Thickness:</span>
+                    <Slider
+                      value={[minipThickness]}
+                      onValueChange={([value]) => setMinipThickness(value)}
+                      min={5}
+                      max={30}
+                      step={1}
+                      className="w-48"
+                    />
+                    <span className="text-xs text-white font-mono">{minipThickness}mm</span>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleReset} className="border-slate-600 text-slate-300">
+                    Reset
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
