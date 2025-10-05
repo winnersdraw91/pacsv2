@@ -784,6 +784,8 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
         stats["total_studies"] = await db.studies.count_documents({})
         stats["total_radiologists"] = await db.users.count_documents({"role": UserRole.RADIOLOGIST})
         stats["pending_studies"] = await db.studies.count_documents({"status": "pending"})
+        stats["total_revenue"] = await calculate_total_revenue()
+        stats["pending_invoices"] = await db.invoices.count_documents({"status": "pending"})
     elif current_user.role == UserRole.CENTRE:
         stats["total_studies"] = await db.studies.count_documents({"centre_id": current_user.centre_id})
         stats["pending_studies"] = await db.studies.count_documents({"centre_id": current_user.centre_id, "status": "pending"})
@@ -795,6 +797,143 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
         stats["completed_studies"] = await db.studies.count_documents({"radiologist_id": current_user.id, "status": "completed"})
     
     return stats
+
+async def calculate_total_revenue():
+    """Calculate total revenue from all invoices"""
+    invoices = await db.invoices.find({"status": "paid"}).to_list(10000)
+    return sum(inv.get("total_amount", 0) for inv in invoices)
+
+# ==================== BILLING ROUTES ====================
+
+@api_router.post("/billing/rates", response_model=BillingRate)
+async def create_billing_rate(rate: BillingRateCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only admins can create billing rates")
+    
+    rate_dict = {
+        "id": f"rate_{generate_study_id()}",
+        **rate.dict(),
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc)
+    }
+    
+    await db.billing_rates.insert_one(rate_dict)
+    return BillingRate(**rate_dict)
+
+@api_router.get("/billing/rates", response_model=List[BillingRate])
+async def get_billing_rates(current_user: User = Depends(get_current_user)):
+    rates = await db.billing_rates.find().to_list(1000)
+    return [BillingRate(**r) for r in rates]
+
+@api_router.put("/billing/rates/{rate_id}", response_model=BillingRate)
+async def update_billing_rate(rate_id: str, rate: BillingRateCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only admins can update billing rates")
+    
+    existing_rate = await db.billing_rates.find_one({"id": rate_id})
+    if not existing_rate:
+        raise HTTPException(status_code=404, detail="Billing rate not found")
+    
+    update_dict = {
+        **rate.dict(),
+        "updated_at": datetime.now(timezone.utc)
+    }
+    
+    await db.billing_rates.update_one({"id": rate_id}, {"$set": update_dict})
+    
+    updated_rate = await db.billing_rates.find_one({"id": rate_id})
+    return BillingRate(**updated_rate)
+
+@api_router.post("/billing/invoices/generate", response_model=Invoice)
+async def generate_invoice(invoice_data: InvoiceCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only admins can generate invoices")
+    
+    centre = await db.centres.find_one({"id": invoice_data.centre_id})
+    if not centre:
+        raise HTTPException(status_code=404, detail="Centre not found")
+    
+    # Get billing rates
+    billing_rates = {}
+    rates = await db.billing_rates.find({"currency": invoice_data.currency}).to_list(100)
+    for rate in rates:
+        billing_rates[rate["modality"]] = rate["base_rate"]
+    
+    # Get studies for period
+    period_start = datetime.fromisoformat(invoice_data.period_start)
+    period_end = datetime.fromisoformat(invoice_data.period_end)
+    
+    studies = await db.studies.find({
+        "centre_id": invoice_data.centre_id,
+        "uploaded_at": {
+            "$gte": period_start,
+            "$lte": period_end
+        },
+        "status": "completed"
+    }).to_list(10000)
+    
+    # Calculate breakdown and total
+    study_breakdown = {}
+    total_amount = 0
+    
+    for study in studies:
+        modality = study["modality"]
+        study_breakdown[modality] = study_breakdown.get(modality, 0) + 1
+        rate = billing_rates.get(modality, 100)  # Default $100
+        total_amount += rate
+    
+    # Generate invoice number
+    invoice_number = f"INV-{generate_study_id()}"
+    
+    invoice_dict = {
+        "id": f"invoice_{generate_study_id()}",
+        "invoice_number": invoice_number,
+        "centre_id": invoice_data.centre_id,
+        "centre_name": centre["name"],
+        "period_start": period_start,
+        "period_end": period_end,
+        "total_studies": len(studies),
+        "study_breakdown": study_breakdown,
+        "total_amount": total_amount,
+        "currency": invoice_data.currency,
+        "status": "pending",
+        "generated_at": datetime.now(timezone.utc),
+        "paid_at": None
+    }
+    
+    await db.invoices.insert_one(invoice_dict)
+    return Invoice(**invoice_dict)
+
+@api_router.get("/billing/invoices", response_model=List[Invoice])
+async def get_invoices(
+    centre_id: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    query = {}
+    
+    if current_user.role == UserRole.CENTRE:
+        query["centre_id"] = current_user.centre_id
+    elif centre_id and current_user.role == UserRole.ADMIN:
+        query["centre_id"] = centre_id
+    
+    if status:
+        query["status"] = status
+    
+    invoices = await db.invoices.find(query).sort("generated_at", -1).to_list(1000)
+    return [Invoice(**inv) for inv in invoices]
+
+@api_router.patch("/billing/invoices/{invoice_id}/mark-paid")
+async def mark_invoice_paid(invoice_id: str, current_user: User = Depends(get_current_user)):
+    if current_user.role not in [UserRole.ADMIN, UserRole.CENTRE]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    await db.invoices.update_one(
+        {"id": invoice_id},
+        {"$set": {"status": "paid", "paid_at": datetime.now(timezone.utc)}}
+    )
+    
+    return {"message": "Invoice marked as paid"}
 
 # Include the router in the main app
 app.include_router(api_router)
