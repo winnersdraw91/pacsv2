@@ -1013,7 +1013,7 @@ export default function DicomViewer() {
                       variant={activeTool === "pan" ? "default" : "outline"}
                       onClick={() => setActiveTool("pan")}
                       className={activeTool === "pan" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
-                      title="Pan Tool"
+                      title="Pan Tool - Click and drag to move image"
                     >
                       <Move className="w-4 h-4" />
                     </Button>
@@ -1022,7 +1022,7 @@ export default function DicomViewer() {
                       variant={activeTool === "zoom" ? "default" : "outline"}
                       onClick={() => setActiveTool("zoom")}
                       className={activeTool === "zoom" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
-                      title="Zoom Tool (Mouse Wheel)"
+                      title="Zoom Tool - Use mouse wheel to zoom in/out"
                     >
                       <ZoomIn className="w-4 h-4" />
                     </Button>
@@ -1031,7 +1031,7 @@ export default function DicomViewer() {
                       variant={activeTool === "windowLevel" ? "default" : "outline"}
                       onClick={() => setActiveTool("windowLevel")}
                       className={activeTool === "windowLevel" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
-                      title="Window/Level Tool"
+                      title="Window/Level Tool - Drag to adjust brightness and contrast (HU values)"
                     >
                       <Contrast className="w-4 h-4" />
                     </Button>
@@ -1046,7 +1046,7 @@ export default function DicomViewer() {
                         setShowMeasurements(true);
                       }}
                       className={activeTool === "length" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
-                      title="Length Tool"
+                      title="Length Tool - Click and drag to measure distance in mm"
                     >
                       <Ruler className="w-4 h-4" />
                     </Button>
@@ -1055,7 +1055,7 @@ export default function DicomViewer() {
                       variant={activeTool === "angle" ? "default" : "outline"}
                       onClick={() => setActiveTool("angle")}
                       className={activeTool === "angle" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
-                      title="Angle Tool"
+                      title="Angle Tool - Click three points to measure angle in degrees"
                     >
                       <Triangle className="w-4 h-4" />
                     </Button>
@@ -1064,7 +1064,7 @@ export default function DicomViewer() {
                       variant={activeTool === "rectangleROI" ? "default" : "outline"}
                       onClick={() => setActiveTool("rectangleROI")}
                       className={activeTool === "rectangleROI" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
-                      title="Rectangle ROI"
+                      title="Rectangle ROI - Draw rectangle to calculate area in mm²"
                     >
                       <Square className="w-4 h-4" />
                     </Button>
@@ -1073,7 +1073,7 @@ export default function DicomViewer() {
                       variant={activeTool === "ellipseROI" ? "default" : "outline"}
                       onClick={() => setActiveTool("ellipseROI")}
                       className={activeTool === "ellipseROI" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
-                      title="Elliptical ROI"
+                      title="Elliptical ROI - Draw ellipse to calculate area in mm²"
                     >
                       <Circle className="w-4 h-4" />
                     </Button>
@@ -1082,17 +1082,29 @@ export default function DicomViewer() {
                       variant={activeTool === "annotate" ? "default" : "outline"}
                       onClick={() => setActiveTool("annotate")}
                       className={activeTool === "annotate" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
-                      title="Annotation Tool"
+                      title="Annotation Tool - Click to add text notes"
                     >
                       <MessageSquare className="w-4 h-4" />
                     </Button>
                   </div>
 
                   <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
-                    <Button size="sm" variant="outline" onClick={() => handleZoomTool("in")} className="border-slate-600 text-slate-300">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => handleZoomTool("in")} 
+                      className="border-slate-600 text-slate-300"
+                      title="Zoom In - Increase magnification"
+                    >
                       <ZoomIn className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleZoomTool("out")} className="border-slate-600 text-slate-300">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => handleZoomTool("out")} 
+                      className="border-slate-600 text-slate-300"
+                      title="Zoom Out - Decrease magnification"
+                    >
                       <ZoomOut className="w-4 h-4" />
                     </Button>
                     <span className="text-sm text-slate-400 min-w-[50px] text-center">
@@ -1101,7 +1113,13 @@ export default function DicomViewer() {
                   </div>
 
                   <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
-                    <Button size="sm" variant="outline" onClick={() => setImageState(prev => ({ ...prev, invert: !prev.invert }))} className="border-slate-600 text-slate-300">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => setImageState(prev => ({ ...prev, invert: !prev.invert }))} 
+                      className="border-slate-600 text-slate-300"
+                      title="Invert Colors - Toggle black/white inversion"
+                    >
                       {imageState.invert ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                     </Button>
                   </div>
