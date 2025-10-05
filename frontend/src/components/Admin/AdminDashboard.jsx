@@ -384,6 +384,8 @@ const StudiesView = () => {
         <p className="text-slate-600">View all DICOM studies across all centres</p>
       </div>
 
+      <AdvancedSearch onSearch={handleSearch} onReset={handleSearchReset} />
+
       <Card>
         <CardContent className="p-0">
           <div className="table-container">
