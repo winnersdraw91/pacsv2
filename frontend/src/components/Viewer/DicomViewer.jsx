@@ -227,6 +227,7 @@ export default function DicomViewer() {
       drawAngles(ctx);
       drawRectangleROIs(ctx);
       drawEllipseROIs(ctx);
+      drawVolumeROIs(ctx);
     }
     
     if (annotations.length > 0) {
