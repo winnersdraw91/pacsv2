@@ -373,7 +373,11 @@ async def upload_dicom_study(
         "file_ids": file_ids,
         "uploaded_at": datetime.now(timezone.utc),
         "ai_report_id": ai_report_dict["id"],
-        "final_report_id": None
+        "final_report_id": None,
+        "is_draft": False,
+        "delete_requested": False,
+        "delete_requested_at": None,
+        "delete_requested_by": None
     }
     
     await db.studies.insert_one(study_dict)
