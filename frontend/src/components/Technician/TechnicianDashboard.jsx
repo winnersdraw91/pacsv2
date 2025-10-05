@@ -81,6 +81,60 @@ export default function TechnicianDashboard() {
     }
   };
 
+  const handleMarkAsDraft = async (studyId) => {
+    if (!confirm("Mark this study as draft? This will remove it from the active workflow.")) {
+      return;
+    }
+
+    try {
+      await axios.patch(`/studies/${studyId}`, {
+        is_draft: true,
+        status: 'draft'
+      });
+      
+      setStudies(prev => prev.map(study => 
+        study.id === studyId 
+          ? { ...study, is_draft: true, status: 'draft' }
+          : study
+      ));
+      
+      alert("Study marked as draft successfully!");
+    } catch (error) {
+      console.error("Failed to mark as draft:", error);
+      alert("Failed to mark study as draft");
+    }
+  };
+
+  const handleRequestDelete = async (studyId) => {
+    if (!confirm("Request deletion for this study? This will require admin approval.")) {
+      return;
+    }
+
+    try {
+      await axios.patch(`/studies/${studyId}`, {
+        delete_requested: true,
+        delete_requested_at: new Date().toISOString(),
+        delete_requested_by: user.id
+      });
+      
+      setStudies(prev => prev.map(study => 
+        study.id === studyId 
+          ? { 
+              ...study, 
+              delete_requested: true,
+              delete_requested_at: new Date().toISOString(),
+              delete_requested_by: user.id
+            }
+          : study
+      ));
+      
+      alert("Deletion request submitted successfully! Admin approval required.");
+    } catch (error) {
+      console.error("Failed to request deletion:", error);
+      alert("Failed to submit deletion request");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
