@@ -167,16 +167,19 @@ frontend:
           comment: "TESTED COMPREHENSIVELY: ✅ Login successful (admin@pacs.com/admin123) ✅ Billing dashboard loads correctly ✅ Fixed API URL issues (removed double /api prefix) ✅ Billing rates management fully functional (create, view, edit rates) ✅ Invoices tab displays properly with invoice details ✅ Payment buttons visible for pending invoices ✅ Stripe integration properly validates amounts (correctly rejects $0 invoices) ✅ All 3 tabs (Rates, Invoices, Transactions) working ✅ Navigation between sections smooth ✅ UI responsive and professional. ISSUE IDENTIFIED: Current invoices show $0.00 amounts which Stripe correctly rejects (expected behavior). Payment flow ready for invoices with non-zero amounts. System is production-ready."
   
   - task: "Volume Measurements (3D ROI)"
-    implemented: false
+    implemented: true
     working: "NA"
     file: "DicomViewer.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: "NA"
           agent: "main"
           comment: "DICOM viewer needs 3D volume calculation tools"
+        - working: "NA"
+          agent: "main"
+          comment: "IMPLEMENTED: Added 3D Volume ROI tool to DICOM viewer. Features: Box icon tool in toolbar, draws 3D ROI with depth effect, calculates volume in mm³ (area × slice thickness), displays slice count, purple color scheme to distinguish from 2D ROIs. Tool integrated into mouse event handlers and drawing pipeline."
   
   - task: "MINIP Implementation"
     implemented: false
