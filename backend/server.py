@@ -1056,16 +1056,16 @@ async def get_checkout_status(
     if not stripe_api_key:
         raise HTTPException(status_code=500, detail="Stripe not configured")
     
+    # Get transaction from database
+    transaction = await db.payment_transactions.find_one({"session_id": session_id})
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    # Verify user can access this transaction
+    if transaction.get("user_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
     try:
-        # Get transaction from database
-        transaction = await db.payment_transactions.find_one({"session_id": session_id})
-        if not transaction:
-            raise HTTPException(status_code=404, detail="Transaction not found")
-        
-        # Verify user can access this transaction
-        if transaction.get("user_id") != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized")
-        
         # Check with Stripe
         webhook_url = "dummy_webhook_url"  # Not used for status check
         stripe_checkout = StripeCheckout(api_key=stripe_api_key, webhook_url=webhook_url)
@@ -1108,7 +1108,7 @@ async def get_checkout_status(
         }
     
     except Exception as e:
-        logging.error(f"Error checking payment status: {str(e)}")
+        logging.error(f"Error checking payment status with Stripe: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to check payment status: {str(e)}")
 
 @api_router.post("/webhook/stripe")
