@@ -642,7 +642,10 @@ async def create_final_report(
         "study_id": study_id,
         "radiologist_id": current_user.id,
         **report.dict(),
-        "approved_at": datetime.now(timezone.utc)
+        "approved_at": datetime.now(timezone.utc),
+        "last_edited_at": None,
+        "last_edited_by": None,
+        "edit_history": []
     }
     
     await db.final_reports.insert_one(final_report_dict)
@@ -652,6 +655,60 @@ async def create_final_report(
     )
     
     return FinalReport(**final_report_dict)
+
+@api_router.put("/studies/{study_id}/final-report", response_model=FinalReport)
+async def edit_final_report(
+    study_id: str,
+    report: FinalReportCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Edit existing final report with audit trail"""
+    if current_user.role != UserRole.RADIOLOGIST:
+        raise HTTPException(status_code=403, detail="Only radiologists can edit reports")
+    
+    study = await db.studies.find_one({"study_id": study_id})
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+    
+    if not study.get("final_report_id"):
+        raise HTTPException(status_code=404, detail="No final report exists for this study")
+    
+    existing_report = await db.final_reports.find_one({"id": study["final_report_id"]})
+    if not existing_report:
+        raise HTTPException(status_code=404, detail="Final report not found")
+    
+    # Create audit trail entry
+    edit_entry = {
+        "edited_at": datetime.now(timezone.utc).isoformat(),
+        "edited_by": current_user.id,
+        "radiologist_name": current_user.name,
+        "previous_findings": existing_report.get("findings"),
+        "previous_diagnosis": existing_report.get("diagnosis"),
+        "previous_recommendations": existing_report.get("recommendations")
+    }
+    
+    # Get existing edit history
+    edit_history = existing_report.get("edit_history", [])
+    edit_history.append(edit_entry)
+    
+    # Update report
+    updated_report = {
+        "findings": report.findings,
+        "diagnosis": report.diagnosis,
+        "recommendations": report.recommendations,
+        "last_edited_at": datetime.now(timezone.utc),
+        "last_edited_by": current_user.id,
+        "edit_history": edit_history
+    }
+    
+    await db.final_reports.update_one(
+        {"id": study["final_report_id"]},
+        {"$set": updated_report}
+    )
+    
+    # Fetch updated report
+    updated_report_doc = await db.final_reports.find_one({"id": study["final_report_id"]})
+    return FinalReport(**updated_report_doc)
 
 @api_router.get("/studies/{study_id}/final-report", response_model=FinalReport)
 async def get_final_report(study_id: str, current_user: User = Depends(get_current_user)):
