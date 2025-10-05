@@ -1182,10 +1182,30 @@ export default function DicomViewer() {
               </Select>
             )}
             
-            <Button size="sm" variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                title="Share Screen - Start screen sharing session"
+              >
+                <Activity className="w-4 h-4 mr-2" />
+                Share
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                title="Video Conference - Start video call with colleagues"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Video
+              </Button>
+              <Button size="sm" variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </div>
           </div>
         </div>
       </div>
