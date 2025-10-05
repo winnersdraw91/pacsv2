@@ -176,12 +176,12 @@ export default function AdvancedSearch({ onSearch, onReset }) {
                     </div>
                     <div>
                       <Label>Status</Label>
-                      <Select value={searchParams.status} onValueChange={(val) => updateParam("status", val)}>
+                      <Select value={searchParams.status || "all"} onValueChange={(val) => updateParam("status", val === "all" ? "" : val)}>
                         <SelectTrigger>
                           <SelectValue placeholder="All Statuses" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All Statuses</SelectItem>
+                          <SelectItem value="all">All Statuses</SelectItem>
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="assigned">Assigned</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
