@@ -426,6 +426,7 @@ export default function AdminDashboard() {
             <Route path="/centres" element={<CentresManagement />} />
             <Route path="/radiologists" element={<RadiologistsManagement />} />
             <Route path="/studies" element={<StudiesView />} />
+            <Route path="/billing" element={<BillingManagement />} />
           </Routes>
         </div>
       </div>
