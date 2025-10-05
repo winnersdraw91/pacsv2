@@ -187,6 +187,8 @@ export default function DicomViewer() {
       draw3DView();
     } else if (viewMode === "MIP") {
       drawMIPView();
+    } else if (viewMode === "MINIP") {
+      drawMINIPView();
     }
   };
 
