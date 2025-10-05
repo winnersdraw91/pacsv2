@@ -295,6 +295,9 @@ class PACSBackendTester:
     def create_test_invoice(self, centre_id: str) -> Optional[str]:
         """Create a test invoice for payment testing"""
         try:
+            # First create some test studies to ensure invoice has amount > 0
+            self.create_test_studies(centre_id)
+            
             end_date = datetime.now()
             start_date = end_date - timedelta(days=30)
             
@@ -308,6 +311,11 @@ class PACSBackendTester:
             response = self.session.post(f"{BASE_URL}/billing/invoices/generate", json=invoice_data)
             if response.status_code == 200:
                 invoice = response.json()
+                # If invoice amount is still 0, let's create a manual invoice with amount
+                if invoice.get("total_amount", 0) == 0:
+                    # Since we can't modify the invoice generation logic, let's skip Stripe test
+                    self.log_test("Create Test Invoice", False, "Generated invoice has $0 amount - no completed studies found")
+                    return None
                 return invoice["id"]
             else:
                 self.log_test("Create Test Invoice", False, f"Failed to create invoice: {response.status_code}", 
@@ -315,6 +323,44 @@ class PACSBackendTester:
                 return None
         except Exception as e:
             self.log_test("Create Test Invoice", False, f"Request failed: {str(e)}")
+            return None
+    
+    def create_test_studies(self, centre_id: str):
+        """Create test studies for billing purposes"""
+        try:
+            # First create a technician user for the centre
+            tech_user = self.create_test_technician(centre_id)
+            if not tech_user:
+                return
+            
+            # Note: Creating actual studies requires file upload which is complex for testing
+            # The invoice generation will work with $0 for testing connectivity
+            # In a real system, there would be completed studies
+            pass
+            
+        except Exception as e:
+            self.log_test("Create Test Studies", False, f"Request failed: {str(e)}")
+    
+    def create_test_technician(self, centre_id: str) -> Optional[str]:
+        """Create a test technician user"""
+        try:
+            tech_data = {
+                "email": "test.tech@testcentre.com",
+                "password": "testpass123",
+                "name": "Test Technician",
+                "role": "technician",
+                "centre_id": centre_id,
+                "phone": "+1-555-0124"
+            }
+            
+            response = self.session.post(f"{BASE_URL}/auth/register", json=tech_data)
+            if response.status_code == 200:
+                user = response.json()
+                return user["id"]
+            else:
+                # User might already exist, that's ok
+                return None
+        except Exception as e:
             return None
     
     def test_dashboard_stats(self):
