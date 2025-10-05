@@ -102,12 +102,16 @@ class DicomStudy(BaseModel):
     centre_id: str
     technician_id: str
     radiologist_id: Optional[str] = None
-    status: str  # pending, assigned, completed
+    status: str  # pending, assigned, completed, draft, delete_requested
     notes: Optional[str] = None
     file_ids: List[str] = []
     uploaded_at: datetime
     ai_report_id: Optional[str] = None
     final_report_id: Optional[str] = None
+    is_draft: bool = False
+    delete_requested: bool = False
+    delete_requested_at: Optional[datetime] = None
+    delete_requested_by: Optional[str] = None
 
 class DicomStudyCreate(BaseModel):
     patient_name: str
