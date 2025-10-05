@@ -448,7 +448,7 @@ const BillingManagement = () => {
   const fetchInvoices = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/billing/invoices");
+      const response = await axios.get("/billing/invoices");
       setInvoices(response.data);
     } catch (error) {
       console.error("Failed to fetch invoices:", error);
