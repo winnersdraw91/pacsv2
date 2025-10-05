@@ -20,11 +20,15 @@ export default function RadiologistDashboard() {
   const [selectedStudy, setSelectedStudy] = useState(null);
   const [aiReport, setAiReport] = useState(null);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [existingReport, setExistingReport] = useState(null);
+  const [showEditHistory, setShowEditHistory] = useState(false);
   const [reportData, setReportData] = useState({
     findings: "",
     diagnosis: "",
     recommendations: ""
   });
+  const [allStudies, setAllStudies] = useState([]);
 
   useEffect(() => {
     fetchData();
