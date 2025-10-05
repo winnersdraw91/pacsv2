@@ -41,12 +41,26 @@ export default function RadiologistDashboard() {
         axios.get("/dashboard/stats")
       ]);
       setStudies(studiesRes.data);
+      setAllStudies(studiesRes.data);
       setStats(statsRes.data);
     } catch (error) {
       console.error("Failed to fetch data:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = async (searchParams) => {
+    try {
+      const response = await axios.post("/studies/search", searchParams);
+      setStudies(response.data);
+    } catch (error) {
+      console.error("Search failed:", error);
+    }
+  };
+
+  const handleResetSearch = () => {
+    setStudies(allStudies);
   };
 
   const handleAssignToMe = async (studyId) => {
