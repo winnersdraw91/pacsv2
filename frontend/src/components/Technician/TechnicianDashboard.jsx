@@ -136,6 +136,20 @@ export default function TechnicianDashboard() {
     }
   };
 
+  const handleSearch = async (searchParams) => {
+    try {
+      const response = await axios.post("/studies/search", searchParams);
+      setStudies(response.data);
+    } catch (error) {
+      console.error("Search failed:", error);
+      alert("Search failed");
+    }
+  };
+
+  const handleSearchReset = () => {
+    fetchData();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
