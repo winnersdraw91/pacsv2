@@ -474,6 +474,88 @@ export default function DicomViewer() {
     }
   };
 
+  const drawMINIPView = () => {
+    if (!canvasMIPRef.current || !study) return;
+    
+    const canvas = canvasMIPRef.current;
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.translate(width / 2, height / 2);
+
+    if (study.modality === "CT" || study.modality === "MRI") {
+      drawAirBoneMINIP(ctx, minipThickness);
+    }
+
+    ctx.restore();
+
+    ctx.fillStyle = "#00ff00";
+    ctx.font = "12px monospace";
+    ctx.fillText("MINIP - Minimum Intensity Projection", 10, 20);
+    ctx.fillText(`Thickness: ${minipThickness}mm`, 10, 40);
+    ctx.fillText("Air/Bone Visualization", 10, 60);
+  };
+
+  const drawAirBoneMINIP = (ctx, thickness) => {
+    // Draw lungs (air-filled structures appear dark in MINIP)
+    ctx.fillStyle = "rgba(20, 20, 20, 0.8)";
+    ctx.beginPath();
+    ctx.ellipse(-80, -30, 60, 80, 0, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(80, -30, 60, 80, 0, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw airways (very dark in MINIP)
+    ctx.strokeStyle = "rgba(10, 10, 10, 0.9)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, -100);
+    ctx.lineTo(0, -30);
+    ctx.moveTo(0, -30);
+    ctx.lineTo(-30, -10);
+    ctx.moveTo(0, -30);
+    ctx.lineTo(30, -10);
+    ctx.stroke();
+
+    // Draw bone structures (appear lighter in MINIP)
+    const bones = [
+      { x: 0, y: -120, radius: 15, opacity: 0.6 }, // skull
+      { x: -60, y: -40, radius: 8, opacity: 0.4 }, // ribs left
+      { x: 60, y: -40, radius: 8, opacity: 0.4 }, // ribs right
+      { x: -40, y: 60, radius: 12, opacity: 0.5 }, // hip left
+      { x: 40, y: 60, radius: 12, opacity: 0.5 }, // hip right
+      { x: 0, y: 80, radius: 10, opacity: 0.4 }, // spine
+    ];
+
+    bones.forEach(bone => {
+      const intensity = Math.floor(60 + (bone.opacity * thickness * 10));
+      ctx.fillStyle = `rgba(${intensity}, ${intensity}, ${intensity}, ${bone.opacity})`;
+      ctx.beginPath();
+      ctx.arc(bone.x, bone.y, bone.radius, 0, 2 * Math.PI);
+      ctx.fill();
+    });
+
+    // Add some textural elements for realism
+    for (let i = 0; i < 20; i++) {
+      const angle = (i / 20) * Math.PI * 2;
+      const radius = 50 + Math.random() * 100;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      
+      const intensity = Math.floor(15 + Math.random() * 30);
+      ctx.fillStyle = `rgba(${intensity}, ${intensity}, ${intensity}, 0.3)`;
+      ctx.beginPath();
+      ctx.arc(x, y, 2 + Math.random() * 3, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  };
+
   const generateMockDicomImage = (ctx, width, height, slice = 0) => {
     const imageWidth = 400;
     const imageHeight = 400;
