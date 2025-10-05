@@ -944,10 +944,20 @@ export default function DicomViewer() {
     if (activeTool === "zoom") {
       setViewports(prev => {
         const updated = [...prev];
-        updated[viewportIndex] = {
-          ...updated[viewportIndex],
-          zoom: Math.max(0.2, Math.min(5, updated[viewportIndex].zoom + direction * 0.1))
-        };
+        if (comparisonMode && syncScroll) {
+          // Sync zoom across all viewports in comparison mode
+          for (let i = 0; i < updated.length; i++) {
+            updated[i] = {
+              ...updated[i],
+              zoom: Math.max(0.2, Math.min(5, updated[i].zoom + direction * 0.1))
+            };
+          }
+        } else {
+          updated[viewportIndex] = {
+            ...updated[viewportIndex],
+            zoom: Math.max(0.2, Math.min(5, updated[viewportIndex].zoom + direction * 0.1))
+          };
+        }
         return updated;
       });
     } else {
@@ -955,10 +965,21 @@ export default function DicomViewer() {
       setViewports(prev => {
         const updated = [...prev];
         const maxSlice = (study?.file_ids?.length || 1) - 1;
-        updated[viewportIndex] = {
-          ...updated[viewportIndex],
-          slice: Math.max(0, Math.min(maxSlice, updated[viewportIndex].slice + direction))
-        };
+        
+        if (comparisonMode && syncScroll) {
+          // Sync scrolling across all viewports in comparison mode
+          for (let i = 0; i < updated.length; i++) {
+            updated[i] = {
+              ...updated[i],
+              slice: Math.max(0, Math.min(maxSlice, updated[i].slice + direction))
+            };
+          }
+        } else {
+          updated[viewportIndex] = {
+            ...updated[viewportIndex],
+            slice: Math.max(0, Math.min(maxSlice, updated[viewportIndex].slice + direction))
+          };
+        }
         return updated;
       });
     }
