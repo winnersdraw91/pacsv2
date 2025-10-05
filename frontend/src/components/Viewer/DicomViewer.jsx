@@ -3,23 +3,43 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
-import { ArrowLeft, Download, ZoomIn, ZoomOut, Move, Contrast, Maximize2, RotateCw, FlipHorizontal, Ruler, Info, Activity, FileText } from "lucide-react";
+import { 
+  ArrowLeft, Download, ZoomIn, ZoomOut, Move, Contrast, Maximize2, 
+  RotateCw, FlipHorizontal, Ruler, Info, Activity, FileText, 
+  Layers, Box, Play, Pause, Grid3x3, MessageSquare, Eye, EyeOff,
+  Minus, Plus, Square
+} from "lucide-react";
 import { Slider } from "../ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 export default function DicomViewer() {
   const { studyId } = useParams();
   const navigate = useNavigate();
-  const canvasRef = useRef(null);
+  
+  // Canvas refs
+  const canvas2DRef = useRef(null);
+  const canvasAxialRef = useRef(null);
+  const canvasSagittalRef = useRef(null);
+  const canvasCoronalRef = useRef(null);
+  const canvas3DRef = useRef(null);
+  const canvasMIPRef = useRef(null);
+  
   const [study, setStudy] = useState(null);
   const [aiReport, setAiReport] = useState(null);
   const [finalReport, setFinalReport] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // View modes
+  const [viewMode, setViewMode] = useState("2D"); // 2D, MPR, 3D, MIP
   const [activeTool, setActiveTool] = useState("pan");
+  
+  // Image state
   const [imageState, setImageState] = useState({
     zoom: 1,
     rotation: 0,
     flipH: false,
     flipV: false,
+    invert: false,
     brightness: 0,
     contrast: 0,
     windowWidth: 400,
@@ -27,21 +47,64 @@ export default function DicomViewer() {
     panX: 0,
     panY: 0
   });
+  
+  // 3D state
+  const [rotation3D, setRotation3D] = useState({ x: 0, y: 0, z: 0 });
+  const [rendering3D, setRendering3D] = useState(false);
+  
+  // Slice management
   const [currentSlice, setCurrentSlice] = useState(0);
+  const [axialSlice, setAxialSlice] = useState(0);
+  const [sagittalSlice, setSagittalSlice] = useState(0);
+  const [coronalSlice, setCoronalSlice] = useState(0);
+  
+  // Cine mode
+  const [cineMode, setCineMode] = useState(false);
+  const [cineSpeed, setCineSpeed] = useState(5); // FPS
+  const cineIntervalRef = useRef(null);
+  
+  // UI state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [showMeasurements, setShowMeasurements] = useState(false);
   const [measurements, setMeasurements] = useState([]);
+  const [annotations, setAnnotations] = useState([]);
+  const [showAnnotations, setShowAnnotations] = useState(true);
+  const [windowPreset, setWindowPreset] = useState("default");
+  const [showCrosshair, setShowCrosshair] = useState(true);
+  const [mipThickness, setMipThickness] = useState(10);
 
   useEffect(() => {
     fetchStudyData();
+    return () => {
+      if (cineIntervalRef.current) clearInterval(cineIntervalRef.current);
+    };
   }, [studyId]);
 
   useEffect(() => {
     if (study) {
-      drawDicomImage();
+      drawAllViews();
     }
-  }, [study, imageState, currentSlice]);
+  }, [study, imageState, currentSlice, viewMode, axialSlice, sagittalSlice, coronalSlice, rotation3D, mipThickness]);
+
+  useEffect(() => {
+    if (cineMode && viewMode === "2D") {
+      cineIntervalRef.current = setInterval(() => {
+        setCurrentSlice(prev => {
+          const maxSlice = (study?.file_ids?.length || 1) - 1;
+          return prev >= maxSlice ? 0 : prev + 1;
+        });
+      }, 1000 / cineSpeed);
+    } else {
+      if (cineIntervalRef.current) {
+        clearInterval(cineIntervalRef.current);
+        cineIntervalRef.current = null;
+      }
+    }
+    return () => {
+      if (cineIntervalRef.current) clearInterval(cineIntervalRef.current);
+    };
+  }, [cineMode, cineSpeed, study, viewMode]);
 
   const fetchStudyData = async () => {
     try {
@@ -69,127 +132,387 @@ export default function DicomViewer() {
     }
   };
 
-  const drawDicomImage = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const drawAllViews = () => {
+    if (viewMode === "2D") {
+      drawCanvas(canvas2DRef.current);
+    } else if (viewMode === "MPR") {
+      drawMPRViews();
+    } else if (viewMode === "3D") {
+      draw3DView();
+    } else if (viewMode === "MIP") {
+      drawMIPView();
+    }
+  };
 
+  const drawCanvas = (canvas, sliceOverride = null) => {
+    if (!canvas || !study) return;
+    
     const ctx = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
 
-    // Clear canvas
-    ctx.fillStyle = "#000000";
+    ctx.fillStyle = imageState.invert ? "#ffffff" : "#000000";
     ctx.fillRect(0, 0, width, height);
 
-    // Save context state
     ctx.save();
-
-    // Apply transformations
     ctx.translate(width / 2 + imageState.panX, height / 2 + imageState.panY);
     ctx.scale(imageState.zoom, imageState.zoom);
     ctx.rotate((imageState.rotation * Math.PI) / 180);
     if (imageState.flipH) ctx.scale(-1, 1);
     if (imageState.flipV) ctx.scale(1, -1);
 
-    // Generate mock medical image based on modality
-    generateMockDicomImage(ctx, width, height);
-
+    generateMockDicomImage(ctx, width, height, sliceOverride ?? currentSlice);
     ctx.restore();
 
-    // Draw overlay information
-    drawOverlayInfo(ctx, width, height);
-
-    // Draw measurements if active
+    drawOverlayInfo(ctx, width, height, sliceOverride ?? currentSlice);
+    
     if (showMeasurements && measurements.length > 0) {
       drawMeasurements(ctx);
     }
+    
+    if (showAnnotations && annotations.length > 0) {
+      drawAnnotations(ctx);
+    }
   };
 
-  const generateMockDicomImage = (ctx, width, height) => {
+  const drawMPRViews = () => {
+    const totalSlices = study?.file_ids?.length || 50;
+    
+    // Axial view (top-down)
+    if (canvasAxialRef.current) {
+      const ctx = canvasAxialRef.current.getContext("2d");
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, 400, 400);
+      ctx.save();
+      ctx.translate(200, 200);
+      generateMockDicomImage(ctx, 400, 400, axialSlice);
+      ctx.restore();
+      
+      // Draw crosshair
+      if (showCrosshair) {
+        ctx.strokeStyle = "#00ff00";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(200, 0);
+        ctx.lineTo(200, 400);
+        ctx.moveTo(0, 200);
+        ctx.lineTo(400, 200);
+        ctx.stroke();
+      }
+      
+      ctx.fillStyle = "#00ff00";
+      ctx.font = "12px monospace";
+      ctx.fillText("AXIAL", 10, 20);
+      ctx.fillText(`${axialSlice + 1}/${totalSlices}`, 10, 390);
+    }
+    
+    // Sagittal view (side view)
+    if (canvasSagittalRef.current) {
+      const ctx = canvasSagittalRef.current.getContext("2d");
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, 400, 400);
+      ctx.save();
+      ctx.translate(200, 200);
+      ctx.scale(0.8, 1);
+      generateMockDicomImage(ctx, 400, 400, sagittalSlice);
+      ctx.restore();
+      
+      if (showCrosshair) {
+        ctx.strokeStyle = "#ff00ff";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(200, 0);
+        ctx.lineTo(200, 400);
+        ctx.moveTo(0, 200);
+        ctx.lineTo(400, 200);
+        ctx.stroke();
+      }
+      
+      ctx.fillStyle = "#ff00ff";
+      ctx.font = "12px monospace";
+      ctx.fillText("SAGITTAL", 10, 20);
+      ctx.fillText(`${sagittalSlice + 1}/${totalSlices}`, 10, 390);
+    }
+    
+    // Coronal view (front view)
+    if (canvasCoronalRef.current) {
+      const ctx = canvasCoronalRef.current.getContext("2d");
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, 400, 400);
+      ctx.save();
+      ctx.translate(200, 200);
+      ctx.scale(1, 0.9);
+      generateMockDicomImage(ctx, 400, 400, coronalSlice);
+      ctx.restore();
+      
+      if (showCrosshair) {
+        ctx.strokeStyle = "#ffff00";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(200, 0);
+        ctx.lineTo(200, 400);
+        ctx.moveTo(0, 200);
+        ctx.lineTo(400, 200);
+        ctx.stroke();
+      }
+      
+      ctx.fillStyle = "#ffff00";
+      ctx.font = "12px monospace";
+      ctx.fillText("CORONAL", 10, 20);
+      ctx.fillText(`${coronalSlice + 1}/${totalSlices}`, 10, 390);
+    }
+  };
+
+  const draw3DView = () => {
+    if (!canvas3DRef.current || !study) return;
+    
+    const canvas = canvas3DRef.current;
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.translate(width / 2, height / 2);
+
+    // Apply 3D rotation
+    const rotX = rotation3D.x * Math.PI / 180;
+    const rotY = rotation3D.y * Math.PI / 180;
+    const rotZ = rotation3D.z * Math.PI / 180;
+
+    // Draw 3D volume rendering
+    if (study.modality === "CT" || study.modality === "MRI") {
+      render3DVolume(ctx, rotX, rotY, rotZ);
+    }
+
+    ctx.restore();
+
+    // Overlay
+    ctx.fillStyle = "#00ffff";
+    ctx.font = "12px monospace";
+    ctx.fillText("3D VOLUME RENDERING", 10, 20);
+    ctx.fillText(`Rotation: X:${rotation3D.x}° Y:${rotation3D.y}° Z:${rotation3D.z}°`, 10, 40);
+    ctx.fillText(`Modality: ${study.modality}`, 10, height - 10);
+  };
+
+  const render3DVolume = (ctx, rotX, rotY, rotZ) => {
+    if (!study) return;
+    
+    // Simulate 3D volume with multiple layers
+    const layers = 20;
+    const baseSize = 150;
+    
+    for (let i = 0; i < layers; i++) {
+      const depth = i / layers;
+      const scale = 1 - depth * 0.3;
+      const alpha = 0.05 + (1 - depth) * 0.05;
+      
+      ctx.save();
+      
+      // Apply rotation
+      const yOffset = Math.sin(rotX) * i * 5;
+      const xOffset = Math.sin(rotY) * i * 5;
+      
+      ctx.translate(xOffset, yOffset);
+      ctx.scale(scale, scale);
+      ctx.rotate(rotZ);
+      
+      ctx.globalAlpha = alpha;
+      
+      if (study.modality === "CT") {
+        // Brain layers
+        ctx.fillStyle = `rgb(${80 + i * 3}, ${80 + i * 3}, ${85 + i * 3})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, baseSize, baseSize * 1.2, 0, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Skull outline
+        if (i > 15) {
+          ctx.strokeStyle = `rgba(200, 200, 200, ${alpha * 2})`;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+      } else if (study.modality === "MRI") {
+        // High-res brain volume
+        ctx.fillStyle = `rgb(${90 + i * 2}, ${90 + i * 2}, ${95 + i * 2})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, baseSize, baseSize * 1.15, 0, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+      
+      ctx.restore();
+    }
+  };
+
+  const drawMIPView = () => {
+    if (!canvasMIPRef.current || !study) return;
+    
+    const canvas = canvasMIPRef.current;
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.translate(width / 2, height / 2);
+
+    // MIP - Maximum Intensity Projection
+    // Simulate vascular structure
+    if (study.modality === "CT" || study.modality === "MRI") {
+      drawVascularMIP(ctx, mipThickness);
+    }
+
+    ctx.restore();
+
+    // Overlay
+    ctx.fillStyle = "#ff0000";
+    ctx.font = "12px monospace";
+    ctx.fillText("MIP - Maximum Intensity Projection", 10, 20);
+    ctx.fillText(`Thickness: ${mipThickness}mm`, 10, 40);
+    ctx.fillText("Vascular Visualization", 10, 60);
+  };
+
+  const drawVascularMIP = (ctx, thickness) => {
+    // Draw brain outline
+    ctx.strokeStyle = "rgba(100, 100, 100, 0.5)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 180, 200, 0, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    // Draw major vessels (Circle of Willis simulation)
+    const vessels = [
+      // Anterior cerebral arteries
+      { x1: 0, y1: -80, x2: -40, y2: -150, width: 4, intensity: 255 },
+      { x1: 0, y1: -80, x2: 40, y2: -150, width: 4, intensity: 255 },
+      
+      // Middle cerebral arteries
+      { x1: -30, y1: -60, x2: -120, y2: -40, width: 5, intensity: 240 },
+      { x1: 30, y1: -60, x2: 120, y2: -40, width: 5, intensity: 240 },
+      
+      // Posterior cerebral arteries
+      { x1: -20, y1: 60, x2: -80, y2: 120, width: 4, intensity: 230 },
+      { x1: 20, y1: 60, x2: 80, y2: 120, width: 4, intensity: 230 },
+      
+      // Basilar artery
+      { x1: 0, y1: 80, x2: 0, y2: 180, width: 6, intensity: 250 },
+      
+      // Internal carotid arteries
+      { x1: -25, y1: 0, x2: -25, y2: 150, width: 5, intensity: 245 },
+      { x1: 25, y1: 0, x2: 25, y2: 150, width: 5, intensity: 245 },
+    ];
+
+    vessels.forEach(vessel => {
+      const brightness = Math.floor(vessel.intensity * (thickness / 20));
+      ctx.strokeStyle = `rgb(${brightness}, ${brightness}, ${brightness})`;
+      ctx.lineWidth = vessel.width * (thickness / 10);
+      ctx.lineCap = "round";
+      
+      ctx.beginPath();
+      ctx.moveTo(vessel.x1, vessel.y1);
+      ctx.lineTo(vessel.x2, vessel.y2);
+      ctx.stroke();
+      
+      // Add glow effect for vessels
+      ctx.strokeStyle = `rgba(${brightness}, ${brightness}, ${brightness}, 0.3)`;
+      ctx.lineWidth = vessel.width * (thickness / 10) + 4;
+      ctx.stroke();
+    });
+
+    // Add smaller vessels
+    for (let i = 0; i < 30; i++) {
+      const angle = (i / 30) * Math.PI * 2;
+      const radius = 100 + Math.random() * 60;
+      const length = 20 + Math.random() * 40;
+      const x1 = Math.cos(angle) * radius;
+      const y1 = Math.sin(angle) * radius;
+      const x2 = Math.cos(angle) * (radius + length);
+      const y2 = Math.sin(angle) * (radius + length);
+      
+      const intensity = 150 + Math.random() * 80;
+      ctx.strokeStyle = `rgb(${intensity}, ${intensity}, ${intensity})`;
+      ctx.lineWidth = 1 + Math.random() * 2;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+  };
+
+  const generateMockDicomImage = (ctx, width, height, slice = 0) => {
     const imageWidth = 400;
     const imageHeight = 400;
     const x = -imageWidth / 2;
     const y = -imageHeight / 2;
 
-    // Apply window/level adjustments
     const brightness = imageState.brightness + (imageState.windowLevel / 100) * 50;
     const contrast = 1 + imageState.contrast / 100 + (imageState.windowWidth / 400);
 
     if (!study) return;
 
-    // Generate different mock images based on modality
+    // Add slice variation
+    const sliceOffset = (slice / (study.file_ids?.length || 1)) * 50 - 25;
+
     if (study.modality === "CT") {
-      // CT Brain scan simulation
-      ctx.fillStyle = "#1a1a1a";
+      ctx.fillStyle = imageState.invert ? "#e0e0e0" : "#1a1a1a";
       ctx.fillRect(x, y, imageWidth, imageHeight);
 
-      // Brain outline
       ctx.beginPath();
-      ctx.ellipse(0, 0, 150, 180, 0, 0, 2 * Math.PI);
-      ctx.fillStyle = `rgb(${60 + brightness}, ${60 + brightness}, ${65 + brightness})`;
+      ctx.ellipse(0, sliceOffset, 150, 180, 0, 0, 2 * Math.PI);
+      ctx.fillStyle = imageState.invert 
+        ? `rgb(${195 - brightness}, ${195 - brightness}, ${190 - brightness})` 
+        : `rgb(${60 + brightness}, ${60 + brightness}, ${65 + brightness})`;
       ctx.fill();
 
-      // Ventricles
+      // Ventricles with slice variation
+      const ventricleSize = 15 + Math.abs(sliceOffset) * 0.3;
       ctx.beginPath();
-      ctx.ellipse(-30, -20, 15, 25, -0.2, 0, 2 * Math.PI);
-      ctx.ellipse(30, -20, 15, 25, 0.2, 0, 2 * Math.PI);
-      ctx.fillStyle = `rgb(${30 + brightness}, ${30 + brightness}, ${30 + brightness})`;
+      ctx.ellipse(-30, -20 + sliceOffset, ventricleSize, 25, -0.2, 0, 2 * Math.PI);
+      ctx.ellipse(30, -20 + sliceOffset, ventricleSize, 25, 0.2, 0, 2 * Math.PI);
+      ctx.fillStyle = imageState.invert 
+        ? `rgb(${225 - brightness}, ${225 - brightness}, ${225 - brightness})`
+        : `rgb(${30 + brightness}, ${30 + brightness}, ${30 + brightness})`;
       ctx.fill();
-
-      // Gray/white matter distinction
-      for (let i = 0; i < 30; i++) {
-        const angle = (i / 30) * Math.PI * 2;
-        const radius = 120 + Math.random() * 20;
-        const px = Math.cos(angle) * radius;
-        const py = Math.sin(angle) * radius;
-        ctx.beginPath();
-        ctx.arc(px, py, 8, 0, 2 * Math.PI);
-        ctx.fillStyle = `rgba(${70 + brightness}, ${70 + brightness}, ${75 + brightness}, 0.3)`;
-        ctx.fill();
-      }
 
       // Skull
-      ctx.strokeStyle = `rgb(${200 + brightness}, ${200 + brightness}, ${200 + brightness})`;
+      ctx.strokeStyle = imageState.invert
+        ? `rgb(${55 - brightness}, ${55 - brightness}, ${55 - brightness})`
+        : `rgb(${200 + brightness}, ${200 + brightness}, ${200 + brightness})`;
       ctx.lineWidth = 8;
       ctx.beginPath();
-      ctx.ellipse(0, 0, 165, 195, 0, 0, 2 * Math.PI);
+      ctx.ellipse(0, sliceOffset, 165, 195, 0, 0, 2 * Math.PI);
       ctx.stroke();
 
     } else if (study.modality === "MRI") {
-      // MRI Brain simulation
-      ctx.fillStyle = "#0a0a0a";
+      ctx.fillStyle = imageState.invert ? "#f0f0f0" : "#0a0a0a";
       ctx.fillRect(x, y, imageWidth, imageHeight);
 
-      // High resolution brain
       ctx.beginPath();
-      ctx.ellipse(0, 0, 155, 185, 0, 0, 2 * Math.PI);
-      ctx.fillStyle = `rgb(${80 + brightness}, ${80 + brightness}, ${85 + brightness})`;
+      ctx.ellipse(0, sliceOffset, 155, 185, 0, 0, 2 * Math.PI);
+      ctx.fillStyle = imageState.invert
+        ? `rgb(${175 - brightness}, ${175 - brightness}, ${170 - brightness})`
+        : `rgb(${80 + brightness}, ${80 + brightness}, ${85 + brightness})`;
       ctx.fill();
 
-      // Detailed structures
-      ctx.fillStyle = `rgb(${60 + brightness}, ${60 + brightness}, ${70 + brightness})`;
+      ctx.fillStyle = imageState.invert
+        ? `rgb(${195 - brightness}, ${195 - brightness}, ${185 - brightness})`
+        : `rgb(${60 + brightness}, ${60 + brightness}, ${70 + brightness})`;
       ctx.beginPath();
-      ctx.ellipse(-35, -25, 18, 30, -0.15, 0, 2 * Math.PI);
-      ctx.ellipse(35, -25, 18, 30, 0.15, 0, 2 * Math.PI);
+      ctx.ellipse(-35, -25 + sliceOffset, 18, 30, -0.15, 0, 2 * Math.PI);
+      ctx.ellipse(35, -25 + sliceOffset, 18, 30, 0.15, 0, 2 * Math.PI);
       ctx.fill();
-
-      // White matter tracts
-      ctx.strokeStyle = `rgba(${100 + brightness}, ${100 + brightness}, ${110 + brightness}, 0.6)`;
-      ctx.lineWidth = 2;
-      for (let i = 0; i < 15; i++) {
-        ctx.beginPath();
-        ctx.moveTo(-50 + i * 7, -80);
-        ctx.lineTo(-50 + i * 7, 80);
-        ctx.stroke();
-      }
 
     } else if (study.modality === "X-ray") {
-      // Chest X-ray simulation
-      ctx.fillStyle = "#000000";
+      ctx.fillStyle = imageState.invert ? "#ffffff" : "#000000";
       ctx.fillRect(x, y, imageWidth, imageHeight);
 
-      // Lung fields
-      ctx.fillStyle = `rgba(${40 + brightness}, ${40 + brightness}, ${40 + brightness}, 0.8)`;
+      ctx.fillStyle = imageState.invert
+        ? `rgba(${215 - brightness}, ${215 - brightness}, ${215 - brightness}, 0.8)`
+        : `rgba(${40 + brightness}, ${40 + brightness}, ${40 + brightness}, 0.8)`;
       ctx.beginPath();
       ctx.ellipse(-60, 0, 80, 140, 0.1, 0, 2 * Math.PI);
       ctx.fill();
@@ -197,66 +520,47 @@ export default function DicomViewer() {
       ctx.ellipse(60, 0, 80, 140, -0.1, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Heart shadow
-      ctx.fillStyle = `rgba(${100 + brightness}, ${100 + brightness}, ${100 + brightness}, 0.7)`;
+      ctx.fillStyle = imageState.invert
+        ? `rgba(${155 - brightness}, ${155 - brightness}, ${155 - brightness}, 0.7)`
+        : `rgba(${100 + brightness}, ${100 + brightness}, ${100 + brightness}, 0.7)`;
       ctx.beginPath();
       ctx.ellipse(-20, 20, 50, 70, 0.3, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Ribs
-      ctx.strokeStyle = `rgba(${180 + brightness}, ${180 + brightness}, ${180 + brightness}, 0.6)`;
+      ctx.strokeStyle = imageState.invert
+        ? `rgba(${75 - brightness}, ${75 - brightness}, ${75 - brightness}, 0.6)`
+        : `rgba(${180 + brightness}, ${180 + brightness}, ${180 + brightness}, 0.6)`;
       ctx.lineWidth = 3;
       for (let i = -3; i < 4; i++) {
         ctx.beginPath();
         ctx.arc(0, i * 40 - 60, 150, 0, Math.PI);
         ctx.stroke();
       }
-
-      // Clavicles
-      ctx.strokeStyle = `rgb(${200 + brightness}, ${200 + brightness}, ${200 + brightness})`;
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(-80, -150, 40, 0.5, 1.5);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(80, -150, 40, 1.6, 2.6);
-      ctx.stroke();
-
-    } else {
-      // Generic medical image
-      ctx.fillStyle = "#1a1a1a";
-      ctx.fillRect(x, y, imageWidth, imageHeight);
-      
-      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 180);
-      gradient.addColorStop(0, `rgb(${80 + brightness}, ${80 + brightness}, ${85 + brightness})`);
-      gradient.addColorStop(1, `rgb(${30 + brightness}, ${30 + brightness}, ${35 + brightness})`);
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 160, 180, 0, 0, 2 * Math.PI);
-      ctx.fill();
     }
 
-    // Add scan line effect
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
-    ctx.lineWidth = 1;
-    for (let i = 0; i < imageHeight; i += 4) {
-      ctx.beginPath();
-      ctx.moveTo(x, y + i);
-      ctx.lineTo(x + imageWidth, y + i);
-      ctx.stroke();
+    // Scanline effect
+    if (!imageState.invert) {
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < imageHeight; i += 4) {
+        ctx.beginPath();
+        ctx.moveTo(x, y + i);
+        ctx.lineTo(x + imageWidth, y + i);
+        ctx.stroke();
+      }
     }
   };
 
-  const drawOverlayInfo = (ctx, width, height) => {
+  const drawOverlayInfo = (ctx, width, height, slice) => {
     ctx.font = "12px monospace";
-    ctx.fillStyle = "#00ff00";
+    ctx.fillStyle = imageState.invert ? "#000000" : "#00ff00";
     ctx.textAlign = "left";
 
     const info = [
       `Patient: ${study?.patient_name || "N/A"}`,
       `Study ID: ${study?.study_id || "N/A"}`,
       `Modality: ${study?.modality || "N/A"}`,
-      `Slice: ${currentSlice + 1}/${study?.file_ids?.length || 1}`,
+      `Slice: ${slice + 1}/${study?.file_ids?.length || 1}`,
       `Zoom: ${(imageState.zoom * 100).toFixed(0)}%`,
       `W/L: ${imageState.windowWidth}/${imageState.windowLevel}`
     ];
@@ -265,7 +569,6 @@ export default function DicomViewer() {
       ctx.fillText(text, 10, 20 + i * 16);
     });
 
-    // Top right info
     ctx.textAlign = "right";
     ctx.fillText(`${study?.patient_age}Y ${study?.patient_gender}`, width - 10, 20);
     ctx.fillText(new Date(study?.uploaded_at).toLocaleDateString(), width - 10, 36);
@@ -277,7 +580,7 @@ export default function DicomViewer() {
     ctx.lineWidth = 2;
     ctx.font = "14px Arial";
 
-    measurements.forEach((measurement, idx) => {
+    measurements.forEach((measurement) => {
       if (measurement.type === "line") {
         ctx.beginPath();
         ctx.moveTo(measurement.x1, measurement.y1);
@@ -295,8 +598,22 @@ export default function DicomViewer() {
     });
   };
 
+  const drawAnnotations = (ctx) => {
+    ctx.fillStyle = "#ff0000";
+    ctx.font = "14px Arial";
+    
+    annotations.forEach((annotation) => {
+      ctx.fillText(annotation.text, annotation.x, annotation.y);
+      ctx.beginPath();
+      ctx.arc(annotation.x - 10, annotation.y - 5, 3, 0, 2 * Math.PI);
+      ctx.fill();
+    });
+  };
+
   const handleMouseDown = (e) => {
-    const canvas = canvasRef.current;
+    const canvas = canvas2DRef.current;
+    if (!canvas) return;
+    
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -307,13 +624,20 @@ export default function DicomViewer() {
     if (activeTool === "measure") {
       const newMeasurement = { type: "line", x1: x, y1: y, x2: x, y2: y };
       setMeasurements([...measurements, newMeasurement]);
+    } else if (activeTool === "annotate") {
+      const text = prompt("Enter annotation:");
+      if (text) {
+        setAnnotations([...annotations, { text, x, y }]);
+      }
     }
   };
 
   const handleMouseMove = (e) => {
     if (!isDragging) return;
 
-    const canvas = canvasRef.current;
+    const canvas = canvas2DRef.current;
+    if (!canvas) return;
+    
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -346,6 +670,32 @@ export default function DicomViewer() {
     setIsDragging(false);
   };
 
+  const handle3DRotation = (axis, delta) => {
+    setRotation3D(prev => ({
+      ...prev,
+      [axis]: (prev[axis] + delta) % 360
+    }));
+  };
+
+  const applyWindowPreset = (preset) => {
+    const presets = {
+      lung: { width: 1500, level: -600 },
+      bone: { width: 2000, level: 300 },
+      brain: { width: 80, level: 40 },
+      soft: { width: 350, level: 40 },
+      liver: { width: 150, level: 30 },
+      default: { width: 400, level: 40 }
+    };
+    
+    const selected = presets[preset] || presets.default;
+    setImageState(prev => ({
+      ...prev,
+      windowWidth: selected.width,
+      windowLevel: selected.level
+    }));
+    setWindowPreset(preset);
+  };
+
   const handleZoomIn = () => {
     setImageState(prev => ({ ...prev, zoom: Math.min(prev.zoom + 0.2, 5) }));
   };
@@ -362,12 +712,17 @@ export default function DicomViewer() {
     setImageState(prev => ({ ...prev, flipH: !prev.flipH }));
   };
 
+  const handleInvert = () => {
+    setImageState(prev => ({ ...prev, invert: !prev.invert }));
+  };
+
   const handleReset = () => {
     setImageState({
       zoom: 1,
       rotation: 0,
       flipH: false,
       flipV: false,
+      invert: false,
       brightness: 0,
       contrast: 0,
       windowWidth: 400,
@@ -375,7 +730,9 @@ export default function DicomViewer() {
       panX: 0,
       panY: 0
     });
+    setRotation3D({ x: 0, y: 0, z: 0 });
     setMeasurements([]);
+    setAnnotations([]);
   };
 
   const handleSliceChange = (direction) => {
@@ -392,7 +749,7 @@ export default function DicomViewer() {
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <div className="text-center">
           <div className="spinner mx-auto mb-4"></div>
-          <p className="text-white">Loading study...</p>
+          <p className="text-white">Loading advanced DICOM viewer...</p>
         </div>
       </div>
     );
@@ -414,7 +771,7 @@ export default function DicomViewer() {
   return (
     <div className="min-h-screen bg-slate-900">
       {/* Header */}
-      <div className="bg-slate-800 border-b border-slate-700 px-6 py-4">
+      <div className="bg-slate-800 border-b border-slate-700 px-6 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
@@ -429,13 +786,53 @@ export default function DicomViewer() {
             </Button>
             <div className="h-8 w-px bg-slate-700"></div>
             <div>
-              <h1 className="text-xl font-bold text-white">Study ID: {study.study_id}</h1>
-              <p className="text-sm text-slate-400">
+              <h1 className="text-lg font-bold text-white">Study ID: {study.study_id}</h1>
+              <p className="text-xs text-slate-400">
                 {study.patient_name} • {study.patient_age}Y • {study.patient_gender} • {study.modality}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          
+          {/* View Mode Selector */}
+          <div className="flex items-center gap-3">
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={viewMode === "2D" ? "default" : "outline"}
+                onClick={() => setViewMode("2D")}
+                className={viewMode === "2D" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+              >
+                <Square className="w-4 h-4 mr-1" />
+                2D
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "MPR" ? "default" : "outline"}
+                onClick={() => setViewMode("MPR")}
+                className={viewMode === "MPR" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+              >
+                <Grid3x3 className="w-4 h-4 mr-1" />
+                MPR
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "3D" ? "default" : "outline"}
+                onClick={() => setViewMode("3D")}
+                className={viewMode === "3D" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+              >
+                <Box className="w-4 h-4 mr-1" />
+                3D
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "MIP" ? "default" : "outline"}
+                onClick={() => setViewMode("MIP")}
+                className={viewMode === "MIP" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+              >
+                <Layers className="w-4 h-4 mr-1" />
+                MIP
+              </Button>
+            </div>
             <Button size="sm" variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
               <Download className="w-4 h-4 mr-2" />
               Export
@@ -445,173 +842,294 @@ export default function DicomViewer() {
       </div>
 
       <div className="flex h-[calc(100vh-73px)]">
-        {/* Viewer */}
+        {/* Main Viewer */}
         <div className="flex-1 flex flex-col">
           {/* Tools */}
-          <div className="bg-slate-800/90 backdrop-blur-sm p-4 border-b border-slate-700">
+          <div className="bg-slate-800/90 backdrop-blur-sm p-3 border-b border-slate-700">
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
-                <Button
-                  size="sm"
-                  variant={activeTool === "pan" ? "default" : "outline"}
-                  onClick={() => setActiveTool("pan")}
-                  className={activeTool === "pan" ? "bg-teal-600 hover:bg-teal-700" : "border-slate-600 text-slate-300 hover:bg-slate-700"}
-                  data-testid="pan-tool"
-                >
-                  <Move className="w-4 h-4 mr-1" />
-                  Pan
-                </Button>
-                <Button
-                  size="sm"
-                  variant={activeTool === "window" ? "default" : "outline"}
-                  onClick={() => setActiveTool("window")}
-                  className={activeTool === "window" ? "bg-teal-600 hover:bg-teal-700" : "border-slate-600 text-slate-300 hover:bg-slate-700"}
-                  data-testid="window-tool"
-                >
-                  <Contrast className="w-4 h-4 mr-1" />
-                  W/L
-                </Button>
-                <Button
-                  size="sm"
-                  variant={activeTool === "measure" ? "default" : "outline"}
-                  onClick={() => {
-                    setActiveTool("measure");
-                    setShowMeasurements(true);
-                  }}
-                  className={activeTool === "measure" ? "bg-teal-600 hover:bg-teal-700" : "border-slate-600 text-slate-300 hover:bg-slate-700"}
-                  data-testid="measure-tool"
-                >
-                  <Ruler className="w-4 h-4 mr-1" />
-                  Measure
-                </Button>
-              </div>
+              {viewMode === "2D" && (
+                <>
+                  <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
+                    <Button
+                      size="sm"
+                      variant={activeTool === "pan" ? "default" : "outline"}
+                      onClick={() => setActiveTool("pan")}
+                      className={activeTool === "pan" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                    >
+                      <Move className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={activeTool === "window" ? "default" : "outline"}
+                      onClick={() => setActiveTool("window")}
+                      className={activeTool === "window" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                    >
+                      <Contrast className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={activeTool === "measure" ? "default" : "outline"}
+                      onClick={() => {
+                        setActiveTool("measure");
+                        setShowMeasurements(true);
+                      }}
+                      className={activeTool === "measure" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                    >
+                      <Ruler className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={activeTool === "annotate" ? "default" : "outline"}
+                      onClick={() => setActiveTool("annotate")}
+                      className={activeTool === "annotate" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                    </Button>
+                  </div>
 
-              <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleZoomIn}
-                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                  data-testid="zoom-in"
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleZoomOut}
-                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                  data-testid="zoom-out"
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </Button>
-                <span className="text-sm text-slate-400 min-w-[50px] text-center">
-                  {(imageState.zoom * 100).toFixed(0)}%
-                </span>
-              </div>
+                  <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
+                    <Button size="sm" variant="outline" onClick={handleZoomIn} className="border-slate-600 text-slate-300">
+                      <ZoomIn className="w-4 h-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleZoomOut} className="border-slate-600 text-slate-300">
+                      <ZoomOut className="w-4 h-4" />
+                    </Button>
+                    <span className="text-sm text-slate-400 min-w-[50px] text-center">
+                      {(imageState.zoom * 100).toFixed(0)}%
+                    </span>
+                  </div>
 
-              <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleRotate}
-                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                  data-testid="rotate"
-                >
-                  <RotateCw className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleFlipH}
-                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                  data-testid="flip"
-                >
-                  <FlipHorizontal className="w-4 h-4" />
-                </Button>
-              </div>
+                  <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
+                    <Button size="sm" variant="outline" onClick={handleRotate} className="border-slate-600 text-slate-300">
+                      <RotateCw className="w-4 h-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleFlipH} className="border-slate-600 text-slate-300">
+                      <FlipHorizontal className="w-4 h-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleInvert} className="border-slate-600 text-slate-300">
+                      {imageState.invert ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </Button>
+                  </div>
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleReset}
-                className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                data-testid="reset"
-              >
-                <Maximize2 className="w-4 h-4 mr-1" />
-                Reset
-              </Button>
+                  <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
+                    <Select value={windowPreset} onValueChange={applyWindowPreset}>
+                      <SelectTrigger className="h-8 w-32 bg-slate-700 border-slate-600 text-slate-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">Default</SelectItem>
+                        <SelectItem value="lung">Lung</SelectItem>
+                        <SelectItem value="bone">Bone</SelectItem>
+                        <SelectItem value="brain">Brain</SelectItem>
+                        <SelectItem value="soft">Soft Tissue</SelectItem>
+                        <SelectItem value="liver">Liver</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div className="ml-auto flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-400">Slice:</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleSliceChange("prev")}
-                    disabled={currentSlice === 0}
-                    className="border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-50"
-                  >
-                    ←
+                  <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setCineMode(!cineMode)}
+                      className={cineMode ? "bg-teal-600 text-white" : "border-slate-600 text-slate-300"}
+                    >
+                      {cineMode ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </Button>
+                    <span className="text-xs text-slate-400">Cine</span>
+                  </div>
+
+                  <Button size="sm" variant="outline" onClick={handleReset} className="border-slate-600 text-slate-300">
+                    <Maximize2 className="w-4 h-4 mr-1" />
+                    Reset
                   </Button>
-                  <span className="text-sm text-white font-mono min-w-[80px] text-center">
-                    {currentSlice + 1} / {totalSlices}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleSliceChange("next")}
-                    disabled={currentSlice === totalSlices - 1}
-                    className="border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-50"
-                  >
-                    →
+
+                  <div className="ml-auto flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleSliceChange("prev")} disabled={currentSlice === 0} className="border-slate-600 text-slate-300">
+                      ←
+                    </Button>
+                    <span className="text-sm text-white font-mono min-w-[80px] text-center">
+                      {currentSlice + 1} / {totalSlices}
+                    </span>
+                    <Button size="sm" variant="outline" onClick={() => handleSliceChange("next")} disabled={currentSlice === totalSlices - 1} className="border-slate-600 text-slate-300">
+                      →
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {viewMode === "MPR" && (
+                <div className="flex items-center gap-4 w-full">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowCrosshair(!showCrosshair)}
+                      className={showCrosshair ? "bg-teal-600 text-white" : "border-slate-600 text-slate-300"}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                    <span className="text-xs text-slate-400">Crosshair</span>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleReset} className="border-slate-600 text-slate-300">
+                    <Maximize2 className="w-4 h-4 mr-1" />
+                    Reset All
                   </Button>
                 </div>
-              </div>
+              )}
+
+              {viewMode === "3D" && (
+                <div className="flex items-center gap-4 w-full">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Rotate X:</span>
+                    <Button size="sm" variant="outline" onClick={() => handle3DRotation('x', -15)} className="border-slate-600 text-slate-300">
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <span className="text-xs text-white font-mono w-12 text-center">{rotation3D.x}°</span>
+                    <Button size="sm" variant="outline" onClick={() => handle3DRotation('x', 15)} className="border-slate-600 text-slate-300">
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Rotate Y:</span>
+                    <Button size="sm" variant="outline" onClick={() => handle3DRotation('y', -15)} className="border-slate-600 text-slate-300">
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <span className="text-xs text-white font-mono w-12 text-center">{rotation3D.y}°</span>
+                    <Button size="sm" variant="outline" onClick={() => handle3DRotation('y', 15)} className="border-slate-600 text-slate-300">
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Rotate Z:</span>
+                    <Button size="sm" variant="outline" onClick={() => handle3DRotation('z', -15)} className="border-slate-600 text-slate-300">
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <span className="text-xs text-white font-mono w-12 text-center">{rotation3D.z}°</span>
+                    <Button size="sm" variant="outline" onClick={() => handle3DRotation('z', 15)} className="border-slate-600 text-slate-300">
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleReset} className="border-slate-600 text-slate-300">
+                    Reset
+                  </Button>
+                </div>
+              )}
+
+              {viewMode === "MIP" && (
+                <div className="flex items-center gap-4 w-full">
+                  <div className="flex items-center gap-3 flex-1">
+                    <span className="text-xs text-slate-400">MIP Thickness:</span>
+                    <Slider
+                      value={[mipThickness]}
+                      onValueChange={([value]) => setMipThickness(value)}
+                      min={5}
+                      max={30}
+                      step={1}
+                      className="w-48"
+                    />
+                    <span className="text-xs text-white font-mono">{mipThickness}mm</span>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleReset} className="border-slate-600 text-slate-300">
+                    Reset
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Viewport */}
           <div className="flex-1 bg-black flex items-center justify-center p-4" data-testid="dicom-viewport">
-            <canvas
-              ref={canvasRef}
-              width={800}
-              height={600}
-              className="border border-slate-700 cursor-crosshair"
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-            />
+            {viewMode === "2D" && (
+              <canvas
+                ref={canvas2DRef}
+                width={800}
+                height={600}
+                className="border border-slate-700 cursor-crosshair"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+              />
+            )}
+
+            {viewMode === "MPR" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col items-center">
+                  <canvas ref={canvasAxialRef} width={400} height={400} className="border border-green-500" />
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button size="sm" variant="outline" onClick={() => setAxialSlice(Math.max(0, axialSlice - 1))} className="border-slate-600 text-slate-300">
+                      ←
+                    </Button>
+                    <span className="text-xs text-white font-mono">{axialSlice + 1}/{totalSlices}</span>
+                    <Button size="sm" variant="outline" onClick={() => setAxialSlice(Math.min(totalSlices - 1, axialSlice + 1))} className="border-slate-600 text-slate-300">
+                      →
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex flex-col items-center">
+                  <canvas ref={canvasSagittalRef} width={400} height={400} className="border border-purple-500" />
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button size="sm" variant="outline" onClick={() => setSagittalSlice(Math.max(0, sagittalSlice - 1))} className="border-slate-600 text-slate-300">
+                      ←
+                    </Button>
+                    <span className="text-xs text-white font-mono">{sagittalSlice + 1}/{totalSlices}</span>
+                    <Button size="sm" variant="outline" onClick={() => setSagittalSlice(Math.min(totalSlices - 1, sagittalSlice + 1))} className="border-slate-600 text-slate-300">
+                      →
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex flex-col items-center col-span-2">
+                  <canvas ref={canvasCoronalRef} width={400} height={400} className="border border-yellow-500" />
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button size="sm" variant="outline" onClick={() => setCoronalSlice(Math.max(0, coronalSlice - 1))} className="border-slate-600 text-slate-300">
+                      ←
+                    </Button>
+                    <span className="text-xs text-white font-mono">{coronalSlice + 1}/{totalSlices}</span>
+                    <Button size="sm" variant="outline" onClick={() => setCoronalSlice(Math.min(totalSlices - 1, coronalSlice + 1))} className="border-slate-600 text-slate-300">
+                      →
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {viewMode === "3D" && (
+              <canvas ref={canvas3DRef} width={800} height={600} className="border border-cyan-500" />
+            )}
+
+            {viewMode === "MIP" && (
+              <canvas ref={canvasMIPRef} width={800} height={600} className="border border-red-500" />
+            )}
           </div>
 
           {/* Bottom Controls */}
-          <div className="bg-slate-800 p-4 border-t border-slate-700">
-            <div className="grid grid-cols-2 gap-6 max-w-2xl">
-              <div>
-                <label className="text-xs text-slate-400 mb-2 block">Brightness</label>
-                <Slider
-                  value={[imageState.brightness]}
-                  onValueChange={([value]) => setImageState(prev => ({ ...prev, brightness: value }))}
-                  min={-100}
-                  max={100}
-                  step={1}
-                  className="w-full"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 mb-2 block">Contrast</label>
-                <Slider
-                  value={[imageState.contrast]}
-                  onValueChange={([value]) => setImageState(prev => ({ ...prev, contrast: value }))}
-                  min={-100}
-                  max={100}
-                  step={1}
-                  className="w-full"
-                />
+          {viewMode === "2D" && (
+            <div className="bg-slate-800 p-3 border-t border-slate-700">
+              <div className="grid grid-cols-2 gap-4 max-w-2xl">
+                <div>
+                  <label className="text-xs text-slate-400 mb-1 block">Brightness</label>
+                  <Slider
+                    value={[imageState.brightness]}
+                    onValueChange={([value]) => setImageState(prev => ({ ...prev, brightness: value }))}
+                    min={-100}
+                    max={100}
+                    step={1}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 mb-1 block">Contrast</label>
+                  <Slider
+                    value={[imageState.contrast]}
+                    onValueChange={([value]) => setImageState(prev => ({ ...prev, contrast: value }))}
+                    min={-100}
+                    max={100}
+                    step={1}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Sidebar - Reports */}
@@ -632,6 +1150,10 @@ export default function DicomViewer() {
                   <div className="flex justify-between">
                     <span className="text-slate-400">Modality:</span>
                     <span className="text-white font-semibold">{study.modality}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">View Mode:</span>
+                    <span className="text-teal-400 font-semibold">{viewMode}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Status:</span>
