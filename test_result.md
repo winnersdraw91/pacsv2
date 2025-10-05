@@ -231,6 +231,30 @@ test_plan:
         - working: "NA"
           agent: "main"
           comment: "ENHANCED: Improved tool tooltips with detailed descriptions (Pan, Zoom, Window/Level, Length, Angle, ROI tools, Volume ROI). Added title attributes to all buttons. Enhanced view mode tooltips explaining MIP and MINIP functionality. DICOM background already black as requested."
+  
+  - task: "Technician File Management"
+    implemented: true
+    working: "NA"
+    file: "TechnicianDashboard.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "IMPLEMENTED: Added comprehensive file management features: Actions column with View DICOM, Mark as Draft, Request Deletion buttons. Handles study state updates with proper API calls. Added advanced search functionality for filtering studies. Enhanced UX with confirmation dialogs and status indicators."
+  
+  - task: "Advanced Search Integration"
+    implemented: true
+    working: "NA"
+    file: "AdminDashboard.jsx, TechnicianDashboard.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "ENHANCED: Integrated AdvancedSearch component across all portals. Admin dashboard StudiesView now has search functionality. Technician dashboard has full search and filter capabilities. Radiologist portal already had search (verified). All portals now support advanced filtering by patient name, study ID, modality, status, date ranges, age, gender."
 
 agent_communication:
     - agent: "main"
