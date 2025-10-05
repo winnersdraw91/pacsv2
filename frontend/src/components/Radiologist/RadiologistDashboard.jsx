@@ -174,6 +174,11 @@ export default function RadiologistDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-8 py-8">
+        {/* Search */}
+        <div className="mb-8">
+          <AdvancedSearch onSearch={handleSearch} onReset={handleResetSearch} />
+        </div>
+
         {/* Stats */}
         <div className="dashboard-grid mb-8">
           <Card className="border-l-4 border-l-indigo-500 shadow-md card-hover">
