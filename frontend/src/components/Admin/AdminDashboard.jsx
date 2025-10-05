@@ -508,7 +508,7 @@ const BillingManagement = () => {
   const handlePayInvoice = async (invoiceId) => {
     try {
       const hostUrl = window.location.origin;
-      const response = await axios.post("/api/billing/checkout/create", {
+      const response = await axios.post("/billing/checkout/create", {
         invoice_id: invoiceId,
         success_url: `${hostUrl}/admin/billing?payment=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${hostUrl}/admin/billing?payment=cancelled`
