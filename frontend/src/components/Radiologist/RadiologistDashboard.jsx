@@ -79,6 +79,8 @@ export default function RadiologistDashboard() {
       const aiReportRes = await axios.get(`/studies/${study.study_id}/ai-report`);
       setAiReport(aiReportRes.data);
       setSelectedStudy(study);
+      setIsEditMode(false);
+      setExistingReport(null);
       setReportData({
         findings: aiReportRes.data.findings,
         diagnosis: aiReportRes.data.preliminary_diagnosis,
@@ -88,6 +90,29 @@ export default function RadiologistDashboard() {
     } catch (error) {
       console.error("Failed to fetch AI report:", error);
       alert("AI report not available");
+    }
+  };
+
+  const handleEditReport = async (study) => {
+    try {
+      const [aiReportRes, finalReportRes] = await Promise.all([
+        axios.get(`/studies/${study.study_id}/ai-report`),
+        axios.get(`/studies/${study.study_id}/final-report`)
+      ]);
+      
+      setAiReport(aiReportRes.data);
+      setExistingReport(finalReportRes.data);
+      setSelectedStudy(study);
+      setIsEditMode(true);
+      setReportData({
+        findings: finalReportRes.data.findings,
+        diagnosis: finalReportRes.data.diagnosis,
+        recommendations: finalReportRes.data.recommendations || ""
+      });
+      setShowReportDialog(true);
+    } catch (error) {
+      console.error("Failed to fetch reports:", error);
+      alert("Failed to load report for editing");
     }
   };
 
