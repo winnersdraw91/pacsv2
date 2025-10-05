@@ -84,11 +84,13 @@ export default function DicomViewer() {
   const [angles, setAngles] = useState([]);
   const [rectangleROIs, setRectangleROIs] = useState([]);
   const [ellipseROIs, setEllipseROIs] = useState([]);
+  const [volumeROIs, setVolumeROIs] = useState([]);
   const [annotations, setAnnotations] = useState([]);
   const [showMeasurements, setShowMeasurements] = useState(true);
   const [windowPreset, setWindowPreset] = useState("default");
   const [showCrosshair, setShowCrosshair] = useState(true);
   const [mipThickness, setMipThickness] = useState(10);
+  const [minipThickness, setMinipThickness] = useState(10);
 
   useEffect(() => {
     fetchStudyData();
