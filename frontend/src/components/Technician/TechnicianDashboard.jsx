@@ -204,6 +204,11 @@ export default function TechnicianDashboard() {
           </Card>
         </div>
 
+        {/* Search Section */}
+        <div className="mb-6">
+          <AdvancedSearch onSearch={handleSearch} onReset={handleSearchReset} />
+        </div>
+
         {/* Upload Section */}
         <div className="mb-8 flex justify-between items-center">
           <div>
