@@ -460,7 +460,7 @@ const BillingManagement = () => {
   const fetchTransactions = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/billing/transactions");
+      const response = await axios.get("/billing/transactions");
       setTransactions(response.data);
     } catch (error) {
       console.error("Failed to fetch transactions:", error);
