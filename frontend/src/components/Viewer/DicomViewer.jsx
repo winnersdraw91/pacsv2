@@ -874,6 +874,11 @@ export default function DicomViewer() {
       updatedROIs[updatedROIs.length - 1].x2 = x;
       updatedROIs[updatedROIs.length - 1].y2 = y;
       setEllipseROIs(updatedROIs);
+    } else if (activeTool === "volumeROI" && volumeROIs.length > 0) {
+      const updatedROIs = [...volumeROIs];
+      updatedROIs[updatedROIs.length - 1].x2 = x;
+      updatedROIs[updatedROIs.length - 1].y2 = y;
+      setVolumeROIs(updatedROIs);
     }
   };
 
