@@ -373,6 +373,113 @@ class PACSBackendTester:
         except Exception as e:
             return None
     
+    def test_enhanced_study_management(self):
+        """Test enhanced study management features (draft, delete requests, search)"""
+        print("\n=== Testing Enhanced Study Management ===")
+        
+        if not self.auth_token:
+            self.log_test("Enhanced Study Management Test", False, "No authentication token available")
+            return
+        
+        # Test study search endpoint
+        try:
+            search_params = {
+                "patient_name": "test",
+                "modality": "CT",
+                "status": "pending",
+                "include_drafts": True
+            }
+            
+            response = self.session.post(f"{BASE_URL}/studies/search", json=search_params)
+            if response.status_code == 200:
+                studies = response.json()
+                self.log_test("Study Search", True, f"Search returned {len(studies)} studies")
+            else:
+                self.log_test("Study Search", False, f"Failed to search studies: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Study Search", False, f"Request failed: {str(e)}")
+        
+        # Test get all studies
+        try:
+            response = self.session.get(f"{BASE_URL}/studies")
+            if response.status_code == 200:
+                studies = response.json()
+                self.log_test("Get All Studies", True, f"Retrieved {len(studies)} studies")
+                
+                # If we have studies, test draft and delete request functionality
+                if studies:
+                    study_id = studies[0]["study_id"]
+                    
+                    # Test mark as draft (will fail for admin, but endpoint should exist)
+                    draft_response = self.session.patch(f"{BASE_URL}/studies/{study_id}/mark-draft")
+                    if draft_response.status_code == 403:
+                        self.log_test("Mark Study as Draft", True, "Endpoint exists (returned expected 403 for admin)")
+                    elif draft_response.status_code == 200:
+                        self.log_test("Mark Study as Draft", True, "Successfully marked study as draft")
+                    else:
+                        self.log_test("Mark Study as Draft", False, f"Unexpected response: {draft_response.status_code}", 
+                                    {"response": draft_response.text})
+                    
+                    # Test request delete (will fail for admin, but endpoint should exist)
+                    delete_response = self.session.patch(f"{BASE_URL}/studies/{study_id}/request-delete")
+                    if delete_response.status_code == 403:
+                        self.log_test("Request Study Delete", True, "Endpoint exists (returned expected 403 for admin)")
+                    elif delete_response.status_code == 200:
+                        self.log_test("Request Study Delete", True, "Successfully requested study deletion")
+                    else:
+                        self.log_test("Request Study Delete", False, f"Unexpected response: {delete_response.status_code}", 
+                                    {"response": delete_response.text})
+                else:
+                    self.log_test("Study Management Features", True, "No studies available for testing draft/delete features")
+                    
+            else:
+                self.log_test("Get All Studies", False, f"Failed to get studies: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Get All Studies", False, f"Request failed: {str(e)}")
+
+    def test_user_management(self):
+        """Test user management endpoints"""
+        print("\n=== Testing User Management ===")
+        
+        if not self.auth_token:
+            self.log_test("User Management Test", False, "No authentication token available")
+            return
+        
+        # Test get users
+        try:
+            response = self.session.get(f"{BASE_URL}/users")
+            if response.status_code == 200:
+                users = response.json()
+                self.log_test("Get Users", True, f"Retrieved {len(users)} users")
+                
+                # Test get users by role
+                role_response = self.session.get(f"{BASE_URL}/users?role=admin")
+                if role_response.status_code == 200:
+                    admin_users = role_response.json()
+                    self.log_test("Get Users by Role", True, f"Retrieved {len(admin_users)} admin users")
+                else:
+                    self.log_test("Get Users by Role", False, f"Failed to get users by role: {role_response.status_code}")
+                    
+            else:
+                self.log_test("Get Users", False, f"Failed to get users: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Get Users", False, f"Request failed: {str(e)}")
+        
+        # Test get centres
+        try:
+            response = self.session.get(f"{BASE_URL}/centres")
+            if response.status_code == 200:
+                centres = response.json()
+                self.log_test("Get Centres", True, f"Retrieved {len(centres)} diagnostic centres")
+            else:
+                self.log_test("Get Centres", False, f"Failed to get centres: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Get Centres", False, f"Request failed: {str(e)}")
+
     def test_dashboard_stats(self):
         """Test dashboard statistics endpoint"""
         print("\n=== Testing Dashboard Stats ===")
