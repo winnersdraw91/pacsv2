@@ -39,6 +39,8 @@ export default function DicomViewer() {
   const [comparisonStudyId, setComparisonStudyId] = useState(null);
   const [comparisonStudy, setComparisonStudy] = useState(null);
   const [syncScroll, setSyncScroll] = useState(true);
+  const [studyOverlay, setStudyOverlay] = useState(false);
+  const [overlayOpacity, setOverlayOpacity] = useState(0.5);
   
   // Multi-viewport state
   const [viewports, setViewports] = useState([
