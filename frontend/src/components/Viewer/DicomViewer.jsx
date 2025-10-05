@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
-import { ArrowLeft, Download, ZoomIn, ZoomOut, Move, Contrast, Maximize2, RotateCw, FlipHorizontal, Ruler, Info } from "lucide-react";
+import { ArrowLeft, Download, ZoomIn, ZoomOut, Move, Contrast, Maximize2, RotateCw, FlipHorizontal, Ruler, Info, Activity, FileText } from "lucide-react";
 import { Slider } from "../ui/slider";
 
 export default function DicomViewer() {
