@@ -408,6 +408,408 @@ const StudiesView = () => {
   );
 };
 
+// Billing Management Component
+const BillingManagement = () => {
+  const [activeTab, setActiveTab] = useState('rates');
+  const [rates, setRates] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showCreateRateDialog, setShowCreateRateDialog] = useState(false);
+  const [newRate, setNewRate] = useState({
+    modality: '',
+    base_rate: '',
+    currency: 'USD',
+    description: ''
+  });
+
+  useEffect(() => {
+    if (activeTab === 'rates') {
+      fetchRates();
+    } else if (activeTab === 'invoices') {
+      fetchInvoices();
+    } else if (activeTab === 'transactions') {
+      fetchTransactions();
+    }
+  }, [activeTab]);
+
+  const fetchRates = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get("/api/billing/rates");
+      setRates(response.data);
+    } catch (error) {
+      console.error("Failed to fetch billing rates:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchInvoices = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get("/api/billing/invoices");
+      setInvoices(response.data);
+    } catch (error) {
+      console.error("Failed to fetch invoices:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTransactions = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get("/api/billing/transactions");
+      setTransactions(response.data);
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateRate = async () => {
+    try {
+      const response = await axios.post("/api/billing/rates", {
+        modality: newRate.modality,
+        base_rate: parseFloat(newRate.base_rate),
+        currency: newRate.currency,
+        description: newRate.description
+      });
+      
+      setRates([...rates, response.data]);
+      setShowCreateRateDialog(false);
+      setNewRate({ modality: '', base_rate: '', currency: 'USD', description: '' });
+    } catch (error) {
+      console.error("Failed to create billing rate:", error);
+    }
+  };
+
+  const handleGenerateInvoice = async (centreId) => {
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 1);
+      
+      const response = await axios.post("/api/billing/invoices/generate", {
+        centre_id: centreId,
+        period_start: startDate.toISOString().split('T')[0],
+        period_end: endDate.toISOString().split('T')[0],
+        currency: "USD"
+      });
+      
+      setInvoices([...invoices, response.data]);
+    } catch (error) {
+      console.error("Failed to generate invoice:", error);
+    }
+  };
+
+  const handlePayInvoice = async (invoiceId) => {
+    try {
+      const hostUrl = window.location.origin;
+      const response = await axios.post("/api/billing/checkout/create", {
+        invoice_id: invoiceId,
+        success_url: `${hostUrl}/admin/billing?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${hostUrl}/admin/billing?payment=cancelled`
+      });
+      
+      if (response.data.url) {
+        window.location.href = response.data.url;
+      }
+    } catch (error) {
+      console.error("Failed to initiate payment:", error);
+    }
+  };
+
+  const formatCurrency = (amount, currency = 'USD') => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency
+    }).format(amount);
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-slate-800">Billing Management</h1>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="border-b border-slate-200">
+        <nav className="-mb-px flex space-x-8">
+          {['rates', 'invoices', 'transactions'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`py-2 px-1 border-b-2 font-medium text-sm capitalize ${
+                activeTab === tab
+                  ? 'border-teal-500 text-teal-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Rates Tab */}
+      {activeTab === 'rates' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-slate-800">Billing Rates</h2>
+            <Dialog open={showCreateRateDialog} onOpenChange={setShowCreateRateDialog}>
+              <DialogTrigger asChild>
+                <Button className="bg-teal-600 hover:bg-teal-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Rate
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create Billing Rate</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="modality">Modality</Label>
+                    <Input
+                      id="modality"
+                      value={newRate.modality}
+                      onChange={(e) => setNewRate({...newRate, modality: e.target.value})}
+                      placeholder="e.g., X-RAY, CT, MRI"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="base_rate">Base Rate</Label>
+                    <Input
+                      id="base_rate"
+                      type="number"
+                      step="0.01"
+                      value={newRate.base_rate}
+                      onChange={(e) => setNewRate({...newRate, base_rate: e.target.value})}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="currency">Currency</Label>
+                    <select
+                      id="currency"
+                      value={newRate.currency}
+                      onChange={(e) => setNewRate({...newRate, currency: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                    >
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="description">Description</Label>
+                    <Input
+                      id="description"
+                      value={newRate.description}
+                      onChange={(e) => setNewRate({...newRate, description: e.target.value})}
+                      placeholder="Optional description"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setShowCreateRateDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleCreateRate} className="bg-teal-600 hover:bg-teal-700">
+                      Create Rate
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b">
+                    <tr>
+                      <th className="text-left p-4 font-medium text-slate-600">Modality</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Rate</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Currency</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Description</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan="5" className="p-8 text-center text-slate-500">Loading...</td>
+                      </tr>
+                    ) : rates.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="p-8 text-center text-slate-500">No billing rates found</td>
+                      </tr>
+                    ) : (
+                      rates.map((rate) => (
+                        <tr key={rate.id} className="border-b hover:bg-slate-50">
+                          <td className="p-4 font-medium">{rate.modality}</td>
+                          <td className="p-4">{formatCurrency(rate.base_rate, rate.currency)}</td>
+                          <td className="p-4">{rate.currency}</td>
+                          <td className="p-4 text-slate-600">{rate.description || '-'}</td>
+                          <td className="p-4 text-slate-600">{formatDate(rate.created_at)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Invoices Tab */}
+      {activeTab === 'invoices' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-slate-800">Invoices</h2>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b">
+                    <tr>
+                      <th className="text-left p-4 font-medium text-slate-600">Invoice #</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Centre</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Period</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Studies</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Amount</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Status</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan="7" className="p-8 text-center text-slate-500">Loading...</td>
+                      </tr>
+                    ) : invoices.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="p-8 text-center text-slate-500">No invoices found</td>
+                      </tr>
+                    ) : (
+                      invoices.map((invoice) => (
+                        <tr key={invoice.id} className="border-b hover:bg-slate-50">
+                          <td className="p-4 font-medium">{invoice.invoice_number}</td>
+                          <td className="p-4">{invoice.centre_name}</td>
+                          <td className="p-4">
+                            {formatDate(invoice.period_start)} - {formatDate(invoice.period_end)}
+                          </td>
+                          <td className="p-4">{invoice.total_studies}</td>
+                          <td className="p-4">{formatCurrency(invoice.total_amount, invoice.currency)}</td>
+                          <td className="p-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              invoice.status === 'paid' 
+                                ? 'bg-green-100 text-green-800' 
+                                : invoice.status === 'overdue'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {invoice.status}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            {invoice.status === 'pending' && (
+                              <Button 
+                                size="sm"
+                                onClick={() => handlePayInvoice(invoice.id)}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                Pay Now
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Transactions Tab */}
+      {activeTab === 'transactions' && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-slate-800">Payment Transactions</h2>
+          
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b">
+                    <tr>
+                      <th className="text-left p-4 font-medium text-slate-600">Transaction ID</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Amount</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Currency</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Status</th>
+                      <th className="text-left p-4 font-medium text-slate-600">User</th>
+                      <th className="text-left p-4 font-medium text-slate-600">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan="6" className="p-8 text-center text-slate-500">Loading...</td>
+                      </tr>
+                    ) : transactions.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="p-8 text-center text-slate-500">No transactions found</td>
+                      </tr>
+                    ) : (
+                      transactions.map((txn) => (
+                        <tr key={txn.id} className="border-b hover:bg-slate-50">
+                          <td className="p-4 font-mono text-sm">{txn.id.slice(0, 8)}...</td>
+                          <td className="p-4">{formatCurrency(txn.amount, txn.currency)}</td>
+                          <td className="p-4">{txn.currency}</td>
+                          <td className="p-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              txn.payment_status === 'paid' 
+                                ? 'bg-green-100 text-green-800' 
+                                : txn.payment_status === 'failed'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {txn.payment_status}
+                            </span>
+                          </td>
+                          <td className="p-4">{txn.user_email}</td>
+                          <td className="p-4 text-slate-600">{formatDate(txn.created_at)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function AdminDashboard() {
   const { user, logout } = useContext(AuthContext);
 
