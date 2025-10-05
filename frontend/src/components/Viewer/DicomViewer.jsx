@@ -1319,6 +1319,30 @@ export default function DicomViewer() {
                     <span className="text-xs text-slate-400">Cine</span>
                   </div>
 
+                  <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setComparisonMode(!comparisonMode)}
+                      className={comparisonMode ? "bg-blue-600 text-white" : "border-slate-600 text-slate-300"}
+                      title="Comparison Mode - Compare studies side by side"
+                    >
+                      <Layers className="w-4 h-4 mr-1" />
+                      Compare
+                    </Button>
+                    {comparisonMode && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSyncScroll(!syncScroll)}
+                        className={syncScroll ? "bg-purple-600 text-white" : "border-slate-600 text-slate-300"}
+                        title="Sync Scroll - Synchronize scrolling between studies"
+                      >
+                        {syncScroll ? <Plus className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
+                      </Button>
+                    )}
+                  </div>
+
                   <Button 
                     size="sm" 
                     variant="outline" 
