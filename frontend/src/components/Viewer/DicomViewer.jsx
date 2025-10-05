@@ -1506,6 +1506,12 @@ export default function DicomViewer() {
                 <canvas ref={canvasMIPRef} width={800} height={600} className="border border-red-500" />
               </div>
             )}
+
+            {viewMode === "MINIP" && (
+              <div className="flex items-center justify-center h-full">
+                <canvas ref={canvasMIPRef} width={800} height={600} className="border border-green-500" />
+              </div>
+            )}
           </div>
 
           {/* Bottom Controls */}
