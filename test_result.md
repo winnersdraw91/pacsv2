@@ -208,11 +208,37 @@ test_plan:
   test_all: false
   test_priority: "high_first"
 
+  - task: "Advanced Image Comparison"
+    implemented: true
+    working: "NA"
+    file: "DicomViewer.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "IMPLEMENTED: Added advanced comparison features: Comparison mode toggle, synchronized scrolling for zoom/pan/stack operations, study overlay functionality with opacity control, visual indicators for active comparison mode. Enhanced collaboration tools with screen sharing and video conference placeholders in header."
+  
+  - task: "DICOM Viewer UI Polish"
+    implemented: true
+    working: "NA"
+    file: "DicomViewer.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "ENHANCED: Improved tool tooltips with detailed descriptions (Pan, Zoom, Window/Level, Length, Angle, ROI tools, Volume ROI). Added title attributes to all buttons. Enhanced view mode tooltips explaining MIP and MINIP functionality. DICOM background already black as requested."
+
 agent_communication:
     - agent: "main"
       message: "Starting comprehensive feature implementation. Beginning with billing system as it was specifically highlighted as missing. Backend has basic billing models and endpoints, but frontend is completely missing billing functionality."
     - agent: "main"  
       message: "COMPLETED: Billing system implementation. Backend: Added comprehensive Stripe payment integration with emergentintegrations library. All payment endpoints working correctly (/api/billing/checkout/create, /api/billing/checkout/status, /api/webhook/stripe, /api/billing/transactions). Frontend: Added complete billing management UI to admin dashboard with tabs for rates, invoices, and transactions. Billing navigation added to sidebar. Ready for frontend testing."
+    - agent: "main"
+      message: "ENHANCED: DICOM viewer with major improvements: ✅ Volume Measurements (3D ROI) tool with purple color scheme and 3D depth visualization ✅ MINIP (Minimum Intensity Projection) view mode for air/bone visualization ✅ Advanced comparison features (sync scroll, study overlay, comparison mode) ✅ Remote collaboration tools (screen sharing, video conference placeholders) ✅ Improved tooltips and UI polish ✅ DICOM background confirmed black. Ready for comprehensive testing of enhanced DICOM functionality."
     - agent: "testing"
       message: "BACKEND TESTING COMPLETE: All core billing functionality tested and working. Authentication (admin@pacs.com/admin123) ✅, Billing Rate Management ✅, Invoice Generation ✅, Stripe Payment Integration ✅ (all endpoints functional), Dashboard Stats ✅. Stripe integration is properly implemented with validation. Only limitation: checkout requires invoices with amount > 0 (correct behavior). Backend APIs are production-ready."
     - agent: "testing"
