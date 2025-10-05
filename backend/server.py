@@ -412,6 +412,176 @@ async def get_study(study_id: str, current_user: User = Depends(get_current_user
         raise HTTPException(status_code=404, detail="Study not found")
     return DicomStudy(**study)
 
+@api_router.post("/studies/search")
+async def search_studies(
+    search_params: Dict[str, Any] = Body(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Advanced search with filters"""
+    query = {}
+    
+    # Role-based filtering
+    if current_user.role == UserRole.TECHNICIAN:
+        query["centre_id"] = current_user.centre_id
+    elif current_user.role == UserRole.CENTRE:
+        query["centre_id"] = current_user.centre_id
+    
+    # Search filters
+    if search_params.get("patient_name"):
+        query["patient_name"] = {"$regex": search_params["patient_name"], "$options": "i"}
+    
+    if search_params.get("study_id"):
+        query["study_id"] = {"$regex": search_params["study_id"], "$options": "i"}
+    
+    if search_params.get("modality"):
+        query["modality"] = search_params["modality"]
+    
+    if search_params.get("status"):
+        query["status"] = search_params["status"]
+    
+    if search_params.get("date_from"):
+        query["uploaded_at"] = {"$gte": datetime.fromisoformat(search_params["date_from"])}
+    
+    if search_params.get("date_to"):
+        if "uploaded_at" not in query:
+            query["uploaded_at"] = {}
+        query["uploaded_at"]["$lte"] = datetime.fromisoformat(search_params["date_to"])
+    
+    if search_params.get("patient_age_min"):
+        query["patient_age"] = {"$gte": search_params["patient_age_min"]}
+    
+    if search_params.get("patient_age_max"):
+        if "patient_age" not in query:
+            query["patient_age"] = {}
+        query["patient_age"]["$lte"] = search_params["patient_age_max"]
+    
+    if search_params.get("patient_gender"):
+        query["patient_gender"] = search_params["patient_gender"]
+    
+    # Filter out drafts unless explicitly requested
+    if not search_params.get("include_drafts"):
+        query["is_draft"] = {"$ne": True}
+    
+    studies = await db.studies.find(query).sort("uploaded_at", -1).to_list(1000)
+    return [DicomStudy(**s) for s in studies]
+
+@api_router.patch("/studies/{study_id}/request-delete")
+async def request_delete_study(study_id: str, current_user: User = Depends(get_current_user)):
+    """Technician requests study deletion"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(status_code=403, detail="Only technicians can request deletion")
+    
+    study = await db.studies.find_one({"study_id": study_id})
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+    
+    if study["technician_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only request deletion of your own uploads")
+    
+    await db.studies.update_one(
+        {"study_id": study_id},
+        {"$set": {
+            "delete_requested": True,
+            "delete_requested_at": datetime.now(timezone.utc),
+            "delete_requested_by": current_user.id
+        }}
+    )
+    
+    return {"message": "Delete request submitted. Awaiting approval from centre admin."}
+
+@api_router.patch("/studies/{study_id}/mark-draft")
+async def mark_study_as_draft(study_id: str, current_user: User = Depends(get_current_user)):
+    """Mark study as draft"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(status_code=403, detail="Only technicians can mark studies as draft")
+    
+    study = await db.studies.find_one({"study_id": study_id})
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+    
+    if study["technician_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only mark your own uploads as draft")
+    
+    await db.studies.update_one(
+        {"study_id": study_id},
+        {"$set": {"is_draft": True, "status": "draft"}}
+    )
+    
+    return {"message": "Study marked as draft"}
+
+@api_router.patch("/studies/{study_id}/unmark-draft")
+async def unmark_study_draft(study_id: str, current_user: User = Depends(get_current_user)):
+    """Remove draft status"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(status_code=403, detail="Only technicians can unmark drafts")
+    
+    study = await db.studies.find_one({"study_id": study_id})
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+    
+    if study["technician_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only unmark your own drafts")
+    
+    await db.studies.update_one(
+        {"study_id": study_id},
+        {"$set": {"is_draft": False, "status": "pending"}}
+    )
+    
+    return {"message": "Study unmarked as draft"}
+
+@api_router.delete("/studies/{study_id}/approve-delete")
+async def approve_delete_request(study_id: str, current_user: User = Depends(get_current_user)):
+    """Centre or Admin approves deletion request"""
+    if current_user.role not in [UserRole.CENTRE, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Only centre managers or admins can approve deletion")
+    
+    study = await db.studies.find_one({"study_id": study_id})
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+    
+    if not study.get("delete_requested"):
+        raise HTTPException(status_code=400, detail="No delete request for this study")
+    
+    # Delete files from GridFS
+    for file_id in study.get("file_ids", []):
+        try:
+            from bson import ObjectId
+            await fs.delete(ObjectId(file_id))
+        except Exception as e:
+            logger.warning(f"Failed to delete file {file_id}: {e}")
+    
+    # Delete study
+    await db.studies.delete_one({"study_id": study_id})
+    
+    # Delete associated reports
+    if study.get("ai_report_id"):
+        await db.ai_reports.delete_one({"id": study["ai_report_id"]})
+    if study.get("final_report_id"):
+        await db.final_reports.delete_one({"id": study["final_report_id"]})
+    
+    return {"message": "Study deleted successfully"}
+
+@api_router.patch("/studies/{study_id}/reject-delete")
+async def reject_delete_request(study_id: str, current_user: User = Depends(get_current_user)):
+    """Centre or Admin rejects deletion request"""
+    if current_user.role not in [UserRole.CENTRE, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Only centre managers or admins can reject deletion")
+    
+    study = await db.studies.find_one({"study_id": study_id})
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+    
+    await db.studies.update_one(
+        {"study_id": study_id},
+        {"$set": {
+            "delete_requested": False,
+            "delete_requested_at": None,
+            "delete_requested_by": None
+        }}
+    )
+    
+    return {"message": "Delete request rejected"}
+
 @api_router.patch("/studies/{study_id}/assign")
 async def assign_study(study_id: str, current_user: User = Depends(get_current_user)):
     if current_user.role != UserRole.RADIOLOGIST:
