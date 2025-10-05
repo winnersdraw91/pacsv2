@@ -895,11 +895,22 @@ export default function DicomViewer() {
     if (activeTool === "pan") {
       setViewports(prev => {
         const updated = [...prev];
-        updated[viewportIndex] = {
-          ...updated[viewportIndex],
-          panX: updated[viewportIndex].panX + dx,
-          panY: updated[viewportIndex].panY + dy
-        };
+        if (comparisonMode && syncScroll) {
+          // Sync pan across all viewports in comparison mode
+          for (let i = 0; i < updated.length; i++) {
+            updated[i] = {
+              ...updated[i],
+              panX: updated[i].panX + dx,
+              panY: updated[i].panY + dy
+            };
+          }
+        } else {
+          updated[viewportIndex] = {
+            ...updated[viewportIndex],
+            panX: updated[viewportIndex].panX + dx,
+            panY: updated[viewportIndex].panY + dy
+          };
+        }
         return updated;
       });
       setDragStart({ x, y });
