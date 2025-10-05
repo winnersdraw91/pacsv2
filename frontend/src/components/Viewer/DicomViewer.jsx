@@ -821,6 +821,9 @@ export default function DicomViewer() {
     } else if (activeTool === "ellipseROI") {
       const newROI = { x1: x, y1: y, x2: x, y2: y };
       setEllipseROIs([...ellipseROIs, newROI]);
+    } else if (activeTool === "volumeROI") {
+      const newROI = { x1: x, y1: y, x2: x, y2: y, slices: 10 };
+      setVolumeROIs([...volumeROIs, newROI]);
     } else if (activeTool === "annotate") {
       const text = prompt("Enter annotation:");
       if (text) {
