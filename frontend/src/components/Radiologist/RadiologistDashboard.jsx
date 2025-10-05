@@ -454,9 +454,20 @@ export default function RadiologistDashboard() {
                   Cancel
                 </Button>
                 <Button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700">
-                  Submit Final Report
+                  {isEditMode ? "Update Report" : "Submit Final Report"}
                 </Button>
               </div>
+              
+              {isEditMode && existingReport && (
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <p className="text-xs text-slate-500">
+                    Original report by: {existingReport.radiologist_id} on {new Date(existingReport.approved_at).toLocaleString()}
+                    {existingReport.last_edited_at && (
+                      <><br />Last edited: {new Date(existingReport.last_edited_at).toLocaleString()}</>
+                    )}
+                  </p>
+                </div>
+              )}
             </form>
           </DialogContent>
         </Dialog>
