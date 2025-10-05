@@ -184,6 +184,25 @@ class InvoiceCreate(BaseModel):
     period_end: str
     currency: str = "USD"
 
+class PaymentTransaction(BaseModel):
+    id: str
+    session_id: str
+    amount: float
+    currency: str
+    metadata: Dict[str, str]
+    payment_id: Optional[str] = None
+    user_id: Optional[str] = None
+    user_email: Optional[str] = None
+    payment_status: str  # initiated, pending, paid, failed, expired
+    invoice_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+class CheckoutRequest(BaseModel):
+    invoice_id: str
+    success_url: Optional[str] = None
+    cancel_url: Optional[str] = None
+
 # ==================== UTILITIES ====================
 
 def generate_study_id() -> str:
