@@ -785,6 +785,53 @@ export default function DicomViewer() {
     });
   };
 
+  const drawVolumeROIs = (ctx) => {
+    ctx.strokeStyle = "#9333ea";
+    ctx.fillStyle = "rgba(147, 51, 234, 0.1)";
+    ctx.lineWidth = 2;
+    ctx.font = "12px Arial";
+
+    volumeROIs.forEach((roi, idx) => {
+      const width = roi.x2 - roi.x1;
+      const height = roi.y2 - roi.y1;
+      
+      // Draw the main ROI rectangle
+      ctx.fillRect(roi.x1, roi.y1, width, height);
+      ctx.strokeRect(roi.x1, roi.y1, width, height);
+      
+      // Draw depth indicator lines to show 3D nature
+      const depthOffset = 8;
+      ctx.strokeStyle = "#7c3aed";
+      ctx.lineWidth = 1;
+      
+      // Draw connecting lines for 3D effect
+      ctx.beginPath();
+      ctx.moveTo(roi.x1, roi.y1);
+      ctx.lineTo(roi.x1 + depthOffset, roi.y1 - depthOffset);
+      ctx.moveTo(roi.x2, roi.y1);
+      ctx.lineTo(roi.x2 + depthOffset, roi.y1 - depthOffset);
+      ctx.moveTo(roi.x2, roi.y2);
+      ctx.lineTo(roi.x2 + depthOffset, roi.y2 - depthOffset);
+      ctx.moveTo(roi.x1, roi.y2);
+      ctx.lineTo(roi.x1 + depthOffset, roi.y2 - depthOffset);
+      ctx.stroke();
+      
+      // Draw back face
+      ctx.strokeRect(roi.x1 + depthOffset, roi.y1 - depthOffset, width, height);
+      
+      // Calculate volume (area * slice thickness)
+      const area = Math.abs(width * height) / 100; // Convert to mm²
+      const volume = area * (roi.slices || 10); // Default 10 slices if not specified
+      
+      ctx.fillStyle = "#9333ea";
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#9333ea";
+      ctx.fillText(`Volume ${idx + 1}: ${volume.toFixed(1)} mm³`, roi.x1 + 5, roi.y1 + 15);
+      ctx.fillText(`Slices: ${roi.slices || 10}`, roi.x1 + 5, roi.y1 + 30);
+      ctx.fillStyle = "rgba(147, 51, 234, 0.1)";
+    });
+  };
+
   const drawAnnotations = (ctx) => {
     ctx.fillStyle = "#ff0000";
     ctx.font = "14px Arial";
