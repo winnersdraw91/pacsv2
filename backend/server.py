@@ -146,6 +146,42 @@ class FinalReportCreate(BaseModel):
     diagnosis: str
     recommendations: Optional[str] = None
 
+class BillingRate(BaseModel):
+    id: str
+    modality: str
+    base_rate: float
+    currency: str
+    description: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+class BillingRateCreate(BaseModel):
+    modality: str
+    base_rate: float
+    currency: str = "USD"
+    description: Optional[str] = None
+
+class Invoice(BaseModel):
+    id: str
+    invoice_number: str
+    centre_id: str
+    centre_name: str
+    period_start: datetime
+    period_end: datetime
+    total_studies: int
+    study_breakdown: Dict[str, int]  # modality: count
+    total_amount: float
+    currency: str
+    status: str  # pending, paid, overdue
+    generated_at: datetime
+    paid_at: Optional[datetime] = None
+
+class InvoiceCreate(BaseModel):
+    centre_id: str
+    period_start: str
+    period_end: str
+    currency: str = "USD"
+
 # ==================== UTILITIES ====================
 
 def generate_study_id() -> str:
