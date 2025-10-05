@@ -492,7 +492,7 @@ const BillingManagement = () => {
       const startDate = new Date();
       startDate.setMonth(startDate.getMonth() - 1);
       
-      const response = await axios.post("/api/billing/invoices/generate", {
+      const response = await axios.post("/billing/invoices/generate", {
         centre_id: centreId,
         period_start: startDate.toISOString().split('T')[0],
         period_end: endDate.toISOString().split('T')[0],
