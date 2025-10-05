@@ -1365,15 +1365,26 @@ export default function DicomViewer() {
                       Compare
                     </Button>
                     {comparisonMode && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setSyncScroll(!syncScroll)}
-                        className={syncScroll ? "bg-purple-600 text-white" : "border-slate-600 text-slate-300"}
-                        title="Sync Scroll - Synchronize scrolling between studies"
-                      >
-                        {syncScroll ? <Plus className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSyncScroll(!syncScroll)}
+                          className={syncScroll ? "bg-purple-600 text-white" : "border-slate-600 text-slate-300"}
+                          title="Sync Scroll - Synchronize scrolling between studies"
+                        >
+                          {syncScroll ? <Plus className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setStudyOverlay(!studyOverlay)}
+                          className={studyOverlay ? "bg-orange-600 text-white" : "border-slate-600 text-slate-300"}
+                          title="Study Overlay - Overlay comparison study"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </>
                     )}
                   </div>
 
