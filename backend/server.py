@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Form, Body, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Form, Body, status, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
@@ -9,12 +9,14 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from jose import JWTError, jwt
+from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
 import os
 import logging
 import random
 import string
 import io
 import base64
+import uuid
 from pathlib import Path
 
 # Load environment
