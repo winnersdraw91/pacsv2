@@ -190,7 +190,6 @@ metadata:
 test_plan:
   current_focus:
     - "Billing Dashboard UI"
-    - "Stripe Payment Integration"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
