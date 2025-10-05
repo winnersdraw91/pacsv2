@@ -203,9 +203,12 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Comprehensive Feature Validation"
+    - "DICOM Viewer Enhanced Features Testing"
+    - "Billing System End-to-End Testing"
   stuck_tasks: []
-  test_all: false
+  test_all: true
   test_priority: "high_first"
 
   - task: "Advanced Image Comparison"
