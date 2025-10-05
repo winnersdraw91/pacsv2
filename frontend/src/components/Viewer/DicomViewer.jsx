@@ -1096,6 +1096,15 @@ export default function DicomViewer() {
                     </Button>
                     <Button
                       size="sm"
+                      variant={activeTool === "volumeROI" ? "default" : "outline"}
+                      onClick={() => setActiveTool("volumeROI")}
+                      className={activeTool === "volumeROI" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                      title="3D Volume ROI - Draw region to calculate volume in mm³"
+                    >
+                      <Box className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
                       variant={activeTool === "annotate" ? "default" : "outline"}
                       onClick={() => setActiveTool("annotate")}
                       className={activeTool === "annotate" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
