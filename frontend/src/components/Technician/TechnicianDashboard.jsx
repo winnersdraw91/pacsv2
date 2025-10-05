@@ -8,6 +8,7 @@ import { Label } from "../ui/label";
 import { Activity, Upload, FileText, LogOut } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import AdvancedSearch from "../Search/AdvancedSearch";
 
 export default function TechnicianDashboard() {
   const { user, logout } = useContext(AuthContext);
