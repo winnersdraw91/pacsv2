@@ -270,6 +270,46 @@ export default function TechnicianDashboard() {
                         </span>
                       </td>
                       <td>{new Date(study.uploaded_at).toLocaleDateString()}</td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open(`/viewer/${study.id}`, '_blank')}
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                            title="View DICOM Study"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                          {!study.is_draft && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleMarkAsDraft(study.id)}
+                              className="text-yellow-600 border-yellow-200 hover:bg-yellow-50"
+                              title="Mark as Draft"
+                            >
+                              Draft
+                            </Button>
+                          )}
+                          {!study.delete_requested && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRequestDelete(study.id)}
+                              className="text-red-600 border-red-200 hover:bg-red-50"
+                              title="Request Deletion"
+                            >
+                              Delete
+                            </Button>
+                          )}
+                          {study.delete_requested && (
+                            <span className="text-xs text-red-500 font-medium">
+                              Delete Pending
+                            </span>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
