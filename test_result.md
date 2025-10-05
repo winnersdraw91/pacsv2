@@ -143,6 +143,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "TESTED: Stripe integration is fully implemented and working. All endpoints functional: /api/billing/checkout/create, /api/billing/checkout/status/{session_id}, /api/webhook/stripe, /api/billing/transactions. Stripe API key configured. Validation working correctly (rejects $0 amounts as expected). Payment flow ready for production use."
+        - working: true
+          agent: "main"
+          comment: "FIXED: Minor error handling issue in checkout status endpoint - now returns proper 404 for missing transactions instead of 500"
 
 frontend:
   - task: "Billing Dashboard UI"
