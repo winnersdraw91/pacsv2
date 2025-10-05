@@ -509,6 +509,8 @@ class PACSBackendTester:
         self.test_billing_rates()
         self.test_invoice_generation()
         self.test_stripe_integration()
+        self.test_enhanced_study_management()
+        self.test_user_management()
         self.test_dashboard_stats()
         
         # Print summary
