@@ -182,16 +182,19 @@ frontend:
           comment: "IMPLEMENTED: Added 3D Volume ROI tool to DICOM viewer. Features: Box icon tool in toolbar, draws 3D ROI with depth effect, calculates volume in mm³ (area × slice thickness), displays slice count, purple color scheme to distinguish from 2D ROIs. Tool integrated into mouse event handlers and drawing pipeline."
   
   - task: "MINIP Implementation"
-    implemented: false
+    implemented: true
     working: "NA"
     file: "DicomViewer.jsx"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: "NA"
           agent: "main"
           comment: "Need Minimum Intensity Projection for air/bone visualization"
+        - working: "NA"
+          agent: "main"
+          comment: "IMPLEMENTED: Added MINIP (Minimum Intensity Projection) view mode. Features: New MINIP button in view mode toolbar, specialized rendering for air/bone visualization (lungs, airways, bone structures), thickness control slider (5-30mm), green border to distinguish from MIP. Renders dark air-filled structures and lighter bone structures for medical analysis."
 
 metadata:
   created_by: "main_agent"
