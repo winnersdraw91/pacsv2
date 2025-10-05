@@ -160,12 +160,12 @@ export default function AdvancedSearch({ onSearch, onReset }) {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Modality</Label>
-                      <Select value={searchParams.modality} onValueChange={(val) => updateParam("modality", val)}>
+                      <Select value={searchParams.modality || "all"} onValueChange={(val) => updateParam("modality", val === "all" ? "" : val)}>
                         <SelectTrigger>
                           <SelectValue placeholder="All Modalities" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All Modalities</SelectItem>
+                          <SelectItem value="all">All Modalities</SelectItem>
                           <SelectItem value="CT">CT Scan</SelectItem>
                           <SelectItem value="MRI">MRI</SelectItem>
                           <SelectItem value="X-ray">X-ray</SelectItem>
