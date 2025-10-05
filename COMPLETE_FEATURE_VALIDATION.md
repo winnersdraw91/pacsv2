@@ -421,7 +421,7 @@ Every tool now has descriptive tooltips on hover:
 | **Technician** | tech@pacs.com | tech123 | ✅ View files, Delete requests, Drafts |
 | **Centre** | centre@pacs.com | centre123 | ✅ Approve deletions, Search |
 
-**Application URL:** https://dicomplus.preview.emergentagent.com
+**Application URL:** https://medimage.preview.emergentagent.com
 
 ---
 

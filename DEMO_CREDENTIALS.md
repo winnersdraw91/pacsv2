@@ -279,7 +279,7 @@
 
 ## 📱 Access URL
 
-**Application**: https://dicomplus.preview.emergentagent.com
+**Application**: https://medimage.preview.emergentagent.com
 
 All services are running and ready for testing!
 
