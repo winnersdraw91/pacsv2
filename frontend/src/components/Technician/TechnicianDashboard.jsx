@@ -250,6 +250,7 @@ export default function TechnicianDashboard() {
                     <th>Age/Gender</th>
                     <th>Status</th>
                     <th>Uploaded</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
