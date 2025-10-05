@@ -119,13 +119,18 @@ export default function RadiologistDashboard() {
   const handleSubmitReport = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`/studies/${selectedStudy.study_id}/final-report`, reportData);
+      if (isEditMode) {
+        await axios.put(`/studies/${selectedStudy.study_id}/final-report`, reportData);
+        alert("Report updated successfully with edit history!");
+      } else {
+        await axios.post(`/studies/${selectedStudy.study_id}/final-report`, reportData);
+        alert("Report submitted successfully!");
+      }
       setShowReportDialog(false);
       fetchData();
-      alert("Report submitted successfully!");
     } catch (error) {
       console.error("Failed to submit report:", error);
-      alert("Failed to submit report");
+      alert(isEditMode ? "Failed to update report" : "Failed to submit report");
     }
   };
 
