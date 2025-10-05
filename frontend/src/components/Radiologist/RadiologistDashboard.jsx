@@ -311,16 +311,29 @@ export default function RadiologistDashboard() {
                               variant="outline"
                               onClick={() => navigate(`/viewer/${study.study_id}`)}
                               data-testid={`view-study-${study.study_id}`}
+                              title="View DICOM Images"
                             >
                               <Eye className="w-4 h-4 mr-1" />
                               View
                             </Button>
-                            {study.status !== "completed" && (
+                            {study.status === "completed" ? (
+                              <Button
+                                size="sm"
+                                onClick={() => handleEditReport(study)}
+                                className="bg-blue-600 hover:bg-blue-700"
+                                data-testid={`edit-report-${study.study_id}`}
+                                title="Edit Final Report"
+                              >
+                                <Edit className="w-4 h-4 mr-1" />
+                                Edit Report
+                              </Button>
+                            ) : (
                               <Button
                                 size="sm"
                                 onClick={() => handleViewStudy(study)}
                                 className="bg-emerald-600 hover:bg-emerald-700"
                                 data-testid={`create-report-${study.study_id}`}
+                                title="Create Final Report"
                               >
                                 Create Report
                               </Button>
