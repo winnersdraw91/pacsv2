@@ -131,6 +131,9 @@ backend:
         - working: true
           agent: "main"
           comment: "Basic invoice generation endpoint already exists"
+        - working: true
+          agent: "testing"
+          comment: "COMPREHENSIVE TESTING COMPLETE: Invoice generation and management fully operational. ✅ POST /api/billing/invoices/generate creates invoices with proper calculations ✅ GET /api/billing/invoices retrieves invoices correctly ✅ PATCH /api/billing/invoices/{id}/mark-paid updates payment status ✅ Proper period-based study aggregation ✅ Billing rate integration working ✅ Centre-based filtering functional. Generated multiple test invoices successfully. Production-ready."
   
   - task: "Stripe Payment Integration"
     implemented: true
