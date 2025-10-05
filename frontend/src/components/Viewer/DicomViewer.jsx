@@ -973,9 +973,20 @@ export default function DicomViewer() {
                 variant={viewMode === "MIP" ? "default" : "outline"}
                 onClick={() => setViewMode("MIP")}
                 className={viewMode === "MIP" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                title="Maximum Intensity Projection - Shows brightest voxels along viewing direction"
               >
                 <Layers className="w-4 h-4 mr-1" />
                 MIP
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "MINIP" ? "default" : "outline"}
+                onClick={() => setViewMode("MINIP")}
+                className={viewMode === "MINIP" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                title="Minimum Intensity Projection - Shows darkest voxels for air/bone visualization"
+              >
+                <Minus className="w-4 h-4 mr-1" />
+                MINIP
               </Button>
             </div>
             
