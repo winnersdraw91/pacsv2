@@ -471,7 +471,7 @@ const BillingManagement = () => {
 
   const handleCreateRate = async () => {
     try {
-      const response = await axios.post("/api/billing/rates", {
+      const response = await axios.post("/billing/rates", {
         modality: newRate.modality,
         base_rate: parseFloat(newRate.base_rate),
         currency: newRate.currency,
