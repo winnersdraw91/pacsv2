@@ -255,9 +255,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "DICOM Viewer Enhanced Features Testing"
+    - "Comprehensive Testing Complete"
   stuck_tasks: []
-  test_all: false
+  test_all: true
   test_priority: "high_first"
 
   - task: "Advanced Image Comparison"
