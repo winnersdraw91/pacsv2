@@ -360,8 +360,39 @@ export default function RadiologistDashboard() {
         <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create Final Report - {selectedStudy?.study_id}</DialogTitle>
+              <DialogTitle className="flex items-center justify-between">
+                <span>{isEditMode ? "Edit" : "Create"} Final Report - {selectedStudy?.study_id}</span>
+                {isEditMode && existingReport?.edit_history?.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowEditHistory(!showEditHistory)}
+                    title="View Edit History"
+                  >
+                    <History className="w-4 h-4 mr-2" />
+                    History ({existingReport.edit_history.length})
+                  </Button>
+                )}
+              </DialogTitle>
             </DialogHeader>
+            
+            {showEditHistory && existingReport?.edit_history && (
+              <div className="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-lg max-h-48 overflow-y-auto">
+                <h4 className="font-semibold text-sm mb-3 text-slate-700">Edit History</h4>
+                <div className="space-y-3">
+                  {existingReport.edit_history.map((entry, idx) => (
+                    <div key={idx} className="text-xs border-l-2 border-blue-400 pl-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-slate-700">{entry.radiologist_name}</span>
+                        <span className="text-slate-500">•</span>
+                        <span className="text-slate-500">{new Date(entry.edited_at).toLocaleString()}</span>
+                      </div>
+                      <p className="text-slate-600 italic">Previous findings: {entry.previous_findings?.substring(0, 100)}...</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {aiReport && (
               <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
