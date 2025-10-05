@@ -35,6 +35,10 @@ export default function DicomViewer() {
   const [layout, setLayout] = useState("2x2");
   const [activeTool, setActiveTool] = useState("pan");
   const [activeViewport, setActiveViewport] = useState(0);
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [comparisonStudyId, setComparisonStudyId] = useState(null);
+  const [comparisonStudy, setComparisonStudy] = useState(null);
+  const [syncScroll, setSyncScroll] = useState(true);
   
   // Multi-viewport state
   const [viewports, setViewports] = useState([
