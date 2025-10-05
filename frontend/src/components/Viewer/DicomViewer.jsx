@@ -7,7 +7,7 @@ import {
   ArrowLeft, Download, ZoomIn, ZoomOut, Move, Contrast, Maximize2, 
   RotateCw, FlipHorizontal, Ruler, Info, Activity, FileText, 
   Layers, Box, Play, Pause, Grid3x3, MessageSquare, Eye, EyeOff,
-  Minus, Plus, Square
+  Minus, Plus, Square, Circle, Triangle
 } from "lucide-react";
 import { Slider } from "../ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -16,7 +16,8 @@ export default function DicomViewer() {
   const { studyId } = useParams();
   const navigate = useNavigate();
   
-  // Canvas refs
+  // Canvas refs for multi-view
+  const canvasRefs = useRef([]);
   const canvas2DRef = useRef(null);
   const canvasAxialRef = useRef(null);
   const canvasSagittalRef = useRef(null);
@@ -29,9 +30,19 @@ export default function DicomViewer() {
   const [finalReport, setFinalReport] = useState(null);
   const [loading, setLoading] = useState(true);
   
-  // View modes
-  const [viewMode, setViewMode] = useState("2D"); // 2D, MPR, 3D, MIP
+  // View modes and layouts
+  const [viewMode, setViewMode] = useState("2D");
+  const [layout, setLayout] = useState("2x2");
   const [activeTool, setActiveTool] = useState("pan");
+  const [activeViewport, setActiveViewport] = useState(0);
+  
+  // Multi-viewport state
+  const [viewports, setViewports] = useState([
+    { slice: 0, zoom: 1, panX: 0, panY: 0, rotation: 0 },
+    { slice: 0, zoom: 1, panX: 0, panY: 0, rotation: 0 },
+    { slice: 0, zoom: 1, panX: 0, panY: 0, rotation: 0 },
+    { slice: 0, zoom: 1, panX: 0, panY: 0, rotation: 0 }
+  ]);
   
   // Image state
   const [imageState, setImageState] = useState({
@@ -50,7 +61,6 @@ export default function DicomViewer() {
   
   // 3D state
   const [rotation3D, setRotation3D] = useState({ x: 0, y: 0, z: 0 });
-  const [rendering3D, setRendering3D] = useState(false);
   
   // Slice management
   const [currentSlice, setCurrentSlice] = useState(0);
@@ -60,16 +70,18 @@ export default function DicomViewer() {
   
   // Cine mode
   const [cineMode, setCineMode] = useState(false);
-  const [cineSpeed, setCineSpeed] = useState(5); // FPS
+  const [cineSpeed, setCineSpeed] = useState(5);
   const cineIntervalRef = useRef(null);
   
-  // UI state
+  // Tools and measurements
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [showMeasurements, setShowMeasurements] = useState(false);
   const [measurements, setMeasurements] = useState([]);
+  const [angles, setAngles] = useState([]);
+  const [rectangleROIs, setRectangleROIs] = useState([]);
+  const [ellipseROIs, setEllipseROIs] = useState([]);
   const [annotations, setAnnotations] = useState([]);
-  const [showAnnotations, setShowAnnotations] = useState(true);
+  const [showMeasurements, setShowMeasurements] = useState(true);
   const [windowPreset, setWindowPreset] = useState("default");
   const [showCrosshair, setShowCrosshair] = useState(true);
   const [mipThickness, setMipThickness] = useState(10);
@@ -85,7 +97,7 @@ export default function DicomViewer() {
     if (study) {
       drawAllViews();
     }
-  }, [study, imageState, currentSlice, viewMode, axialSlice, sagittalSlice, coronalSlice, rotation3D, mipThickness]);
+  }, [study, imageState, currentSlice, viewMode, axialSlice, sagittalSlice, coronalSlice, rotation3D, mipThickness, layout, viewports]);
 
   useEffect(() => {
     if (cineMode && viewMode === "2D") {
@@ -132,9 +144,37 @@ export default function DicomViewer() {
     }
   };
 
+  const getLayoutConfig = (layoutType) => {
+    const configs = {
+      '1x1': { rows: 1, cols: 1, viewports: 1 },
+      '1x2': { rows: 1, cols: 2, viewports: 2 },
+      '2x1': { rows: 2, cols: 1, viewports: 2 },
+      '2x2': { rows: 2, cols: 2, viewports: 4 },
+      '1x3': { rows: 1, cols: 3, viewports: 3 },
+      '3x1': { rows: 3, cols: 1, viewports: 3 },
+      '1x4': { rows: 1, cols: 4, viewports: 4 },
+      '4x1': { rows: 4, cols: 1, viewports: 4 },
+      '2x3': { rows: 2, cols: 3, viewports: 6 },
+      '3x2': { rows: 3, cols: 2, viewports: 6 },
+      '3x3': { rows: 3, cols: 3, viewports: 9 },
+      '1x6': { rows: 1, cols: 6, viewports: 6 },
+      '6x1': { rows: 6, cols: 1, viewports: 6 }
+    };
+    return configs[layoutType] || configs['2x2'];
+  };
+
   const drawAllViews = () => {
     if (viewMode === "2D") {
-      drawCanvas(canvas2DRef.current);
+      if (layout === "1x1") {
+        drawCanvas(canvas2DRef.current, 0);
+      } else {
+        const config = getLayoutConfig(layout);
+        for (let i = 0; i < config.viewports && i < canvasRefs.current.length; i++) {
+          if (canvasRefs.current[i]) {
+            drawCanvas(canvasRefs.current[i], i);
+          }
+        }
+      }
     } else if (viewMode === "MPR") {
       drawMPRViews();
     } else if (viewMode === "3D") {
@@ -144,33 +184,44 @@ export default function DicomViewer() {
     }
   };
 
-  const drawCanvas = (canvas, sliceOverride = null) => {
+  const drawCanvas = (canvas, viewportIndex = 0) => {
     if (!canvas || !study) return;
     
     const ctx = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
+    const viewport = viewports[viewportIndex] || viewports[0];
 
     ctx.fillStyle = imageState.invert ? "#ffffff" : "#000000";
     ctx.fillRect(0, 0, width, height);
 
     ctx.save();
-    ctx.translate(width / 2 + imageState.panX, height / 2 + imageState.panY);
-    ctx.scale(imageState.zoom, imageState.zoom);
-    ctx.rotate((imageState.rotation * Math.PI) / 180);
+    ctx.translate(width / 2 + viewport.panX, height / 2 + viewport.panY);
+    ctx.scale(viewport.zoom, viewport.zoom);
+    ctx.rotate((viewport.rotation * Math.PI) / 180);
     if (imageState.flipH) ctx.scale(-1, 1);
     if (imageState.flipV) ctx.scale(1, -1);
 
-    generateMockDicomImage(ctx, width, height, sliceOverride ?? currentSlice);
+    generateMockDicomImage(ctx, width, height, viewport.slice);
     ctx.restore();
 
-    drawOverlayInfo(ctx, width, height, sliceOverride ?? currentSlice);
+    drawOverlayInfo(ctx, width, height, viewport.slice, viewportIndex);
     
-    if (showMeasurements && measurements.length > 0) {
-      drawMeasurements(ctx);
+    // Draw active viewport indicator
+    if (viewportIndex === activeViewport && layout !== "1x1") {
+      ctx.strokeStyle = "#00ff00";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(0, 0, width, height);
     }
     
-    if (showAnnotations && annotations.length > 0) {
+    if (showMeasurements) {
+      drawMeasurements(ctx);
+      drawAngles(ctx);
+      drawRectangleROIs(ctx);
+      drawEllipseROIs(ctx);
+    }
+    
+    if (annotations.length > 0) {
       drawAnnotations(ctx);
     }
   };
@@ -178,7 +229,6 @@ export default function DicomViewer() {
   const drawMPRViews = () => {
     const totalSlices = study?.file_ids?.length || 50;
     
-    // Axial view (top-down)
     if (canvasAxialRef.current) {
       const ctx = canvasAxialRef.current.getContext("2d");
       ctx.fillStyle = "#000000";
@@ -188,7 +238,6 @@ export default function DicomViewer() {
       generateMockDicomImage(ctx, 400, 400, axialSlice);
       ctx.restore();
       
-      // Draw crosshair
       if (showCrosshair) {
         ctx.strokeStyle = "#00ff00";
         ctx.lineWidth = 1;
@@ -206,7 +255,6 @@ export default function DicomViewer() {
       ctx.fillText(`${axialSlice + 1}/${totalSlices}`, 10, 390);
     }
     
-    // Sagittal view (side view)
     if (canvasSagittalRef.current) {
       const ctx = canvasSagittalRef.current.getContext("2d");
       ctx.fillStyle = "#000000";
@@ -234,7 +282,6 @@ export default function DicomViewer() {
       ctx.fillText(`${sagittalSlice + 1}/${totalSlices}`, 10, 390);
     }
     
-    // Coronal view (front view)
     if (canvasCoronalRef.current) {
       const ctx = canvasCoronalRef.current.getContext("2d");
       ctx.fillStyle = "#000000";
@@ -277,19 +324,16 @@ export default function DicomViewer() {
     ctx.save();
     ctx.translate(width / 2, height / 2);
 
-    // Apply 3D rotation
     const rotX = rotation3D.x * Math.PI / 180;
     const rotY = rotation3D.y * Math.PI / 180;
     const rotZ = rotation3D.z * Math.PI / 180;
 
-    // Draw 3D volume rendering
     if (study.modality === "CT" || study.modality === "MRI") {
       render3DVolume(ctx, rotX, rotY, rotZ);
     }
 
     ctx.restore();
 
-    // Overlay
     ctx.fillStyle = "#00ffff";
     ctx.font = "12px monospace";
     ctx.fillText("3D VOLUME RENDERING", 10, 20);
@@ -300,7 +344,6 @@ export default function DicomViewer() {
   const render3DVolume = (ctx, rotX, rotY, rotZ) => {
     if (!study) return;
     
-    // Simulate 3D volume with multiple layers
     const layers = 20;
     const baseSize = 150;
     
@@ -311,7 +354,6 @@ export default function DicomViewer() {
       
       ctx.save();
       
-      // Apply rotation
       const yOffset = Math.sin(rotX) * i * 5;
       const xOffset = Math.sin(rotY) * i * 5;
       
@@ -322,20 +364,17 @@ export default function DicomViewer() {
       ctx.globalAlpha = alpha;
       
       if (study.modality === "CT") {
-        // Brain layers
         ctx.fillStyle = `rgb(${80 + i * 3}, ${80 + i * 3}, ${85 + i * 3})`;
         ctx.beginPath();
         ctx.ellipse(0, 0, baseSize, baseSize * 1.2, 0, 0, 2 * Math.PI);
         ctx.fill();
         
-        // Skull outline
         if (i > 15) {
           ctx.strokeStyle = `rgba(200, 200, 200, ${alpha * 2})`;
           ctx.lineWidth = 3;
           ctx.stroke();
         }
       } else if (study.modality === "MRI") {
-        // High-res brain volume
         ctx.fillStyle = `rgb(${90 + i * 2}, ${90 + i * 2}, ${95 + i * 2})`;
         ctx.beginPath();
         ctx.ellipse(0, 0, baseSize, baseSize * 1.15, 0, 0, 2 * Math.PI);
@@ -360,15 +399,12 @@ export default function DicomViewer() {
     ctx.save();
     ctx.translate(width / 2, height / 2);
 
-    // MIP - Maximum Intensity Projection
-    // Simulate vascular structure
     if (study.modality === "CT" || study.modality === "MRI") {
       drawVascularMIP(ctx, mipThickness);
     }
 
     ctx.restore();
 
-    // Overlay
     ctx.fillStyle = "#ff0000";
     ctx.font = "12px monospace";
     ctx.fillText("MIP - Maximum Intensity Projection", 10, 20);
@@ -377,31 +413,20 @@ export default function DicomViewer() {
   };
 
   const drawVascularMIP = (ctx, thickness) => {
-    // Draw brain outline
     ctx.strokeStyle = "rgba(100, 100, 100, 0.5)";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.ellipse(0, 0, 180, 200, 0, 0, 2 * Math.PI);
     ctx.stroke();
 
-    // Draw major vessels (Circle of Willis simulation)
     const vessels = [
-      // Anterior cerebral arteries
       { x1: 0, y1: -80, x2: -40, y2: -150, width: 4, intensity: 255 },
       { x1: 0, y1: -80, x2: 40, y2: -150, width: 4, intensity: 255 },
-      
-      // Middle cerebral arteries
       { x1: -30, y1: -60, x2: -120, y2: -40, width: 5, intensity: 240 },
       { x1: 30, y1: -60, x2: 120, y2: -40, width: 5, intensity: 240 },
-      
-      // Posterior cerebral arteries
       { x1: -20, y1: 60, x2: -80, y2: 120, width: 4, intensity: 230 },
       { x1: 20, y1: 60, x2: 80, y2: 120, width: 4, intensity: 230 },
-      
-      // Basilar artery
       { x1: 0, y1: 80, x2: 0, y2: 180, width: 6, intensity: 250 },
-      
-      // Internal carotid arteries
       { x1: -25, y1: 0, x2: -25, y2: 150, width: 5, intensity: 245 },
       { x1: 25, y1: 0, x2: 25, y2: 150, width: 5, intensity: 245 },
     ];
@@ -417,13 +442,11 @@ export default function DicomViewer() {
       ctx.lineTo(vessel.x2, vessel.y2);
       ctx.stroke();
       
-      // Add glow effect for vessels
       ctx.strokeStyle = `rgba(${brightness}, ${brightness}, ${brightness}, 0.3)`;
       ctx.lineWidth = vessel.width * (thickness / 10) + 4;
       ctx.stroke();
     });
 
-    // Add smaller vessels
     for (let i = 0; i < 30; i++) {
       const angle = (i / 30) * Math.PI * 2;
       const radius = 100 + Math.random() * 60;
@@ -450,11 +473,9 @@ export default function DicomViewer() {
     const y = -imageHeight / 2;
 
     const brightness = imageState.brightness + (imageState.windowLevel / 100) * 50;
-    const contrast = 1 + imageState.contrast / 100 + (imageState.windowWidth / 400);
 
     if (!study) return;
 
-    // Add slice variation
     const sliceOffset = (slice / (study.file_ids?.length || 1)) * 50 - 25;
 
     if (study.modality === "CT") {
@@ -468,7 +489,6 @@ export default function DicomViewer() {
         : `rgb(${60 + brightness}, ${60 + brightness}, ${65 + brightness})`;
       ctx.fill();
 
-      // Ventricles with slice variation
       const ventricleSize = 15 + Math.abs(sliceOffset) * 0.3;
       ctx.beginPath();
       ctx.ellipse(-30, -20 + sliceOffset, ventricleSize, 25, -0.2, 0, 2 * Math.PI);
@@ -478,7 +498,6 @@ export default function DicomViewer() {
         : `rgb(${30 + brightness}, ${30 + brightness}, ${30 + brightness})`;
       ctx.fill();
 
-      // Skull
       ctx.strokeStyle = imageState.invert
         ? `rgb(${55 - brightness}, ${55 - brightness}, ${55 - brightness})`
         : `rgb(${200 + brightness}, ${200 + brightness}, ${200 + brightness})`;
@@ -538,7 +557,6 @@ export default function DicomViewer() {
       }
     }
 
-    // Scanline effect
     if (!imageState.invert) {
       ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
       ctx.lineWidth = 1;
@@ -551,17 +569,18 @@ export default function DicomViewer() {
     }
   };
 
-  const drawOverlayInfo = (ctx, width, height, slice) => {
+  const drawOverlayInfo = (ctx, width, height, slice, viewportIndex = 0) => {
     ctx.font = "12px monospace";
     ctx.fillStyle = imageState.invert ? "#000000" : "#00ff00";
     ctx.textAlign = "left";
 
+    const viewport = viewports[viewportIndex] || viewports[0];
     const info = [
       `Patient: ${study?.patient_name || "N/A"}`,
       `Study ID: ${study?.study_id || "N/A"}`,
       `Modality: ${study?.modality || "N/A"}`,
       `Slice: ${slice + 1}/${study?.file_ids?.length || 1}`,
-      `Zoom: ${(imageState.zoom * 100).toFixed(0)}%`,
+      `Zoom: ${(viewport.zoom * 100).toFixed(0)}%`,
       `W/L: ${imageState.windowWidth}/${imageState.windowLevel}`
     ];
 
@@ -571,7 +590,9 @@ export default function DicomViewer() {
 
     ctx.textAlign = "right";
     ctx.fillText(`${study?.patient_age}Y ${study?.patient_gender}`, width - 10, 20);
-    ctx.fillText(new Date(study?.uploaded_at).toLocaleDateString(), width - 10, 36);
+    if (layout !== "1x1") {
+      ctx.fillText(`View ${viewportIndex + 1}`, width - 10, 36);
+    }
   };
 
   const drawMeasurements = (ctx) => {
@@ -598,6 +619,81 @@ export default function DicomViewer() {
     });
   };
 
+  const drawAngles = (ctx) => {
+    ctx.strokeStyle = "#ff00ff";
+    ctx.fillStyle = "#ff00ff";
+    ctx.lineWidth = 2;
+    ctx.font = "14px Arial";
+
+    angles.forEach((angle) => {
+      if (angle.points && angle.points.length === 3) {
+        const [p1, p2, p3] = angle.points;
+        
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.lineTo(p3.x, p3.y);
+        ctx.stroke();
+
+        const angle1 = Math.atan2(p1.y - p2.y, p1.x - p2.x);
+        const angle2 = Math.atan2(p3.y - p2.y, p3.x - p2.x);
+        let angleDiff = (angle2 - angle1) * 180 / Math.PI;
+        if (angleDiff < 0) angleDiff += 360;
+        if (angleDiff > 180) angleDiff = 360 - angleDiff;
+
+        ctx.beginPath();
+        ctx.arc(p2.x, p2.y, 30, angle1, angle2);
+        ctx.stroke();
+
+        ctx.fillText(`${angleDiff.toFixed(1)}°`, p2.x + 35, p2.y - 5);
+      }
+    });
+  };
+
+  const drawRectangleROIs = (ctx) => {
+    ctx.strokeStyle = "#00ffff";
+    ctx.fillStyle = "rgba(0, 255, 255, 0.1)";
+    ctx.lineWidth = 2;
+    ctx.font = "12px Arial";
+
+    rectangleROIs.forEach((roi, idx) => {
+      const width = roi.x2 - roi.x1;
+      const height = roi.y2 - roi.y1;
+      
+      ctx.fillRect(roi.x1, roi.y1, width, height);
+      ctx.strokeRect(roi.x1, roi.y1, width, height);
+      
+      const area = Math.abs(width * height) / 100;
+      ctx.fillStyle = "#00ffff";
+      ctx.fillText(`ROI ${idx + 1}: ${area.toFixed(1)} mm²`, roi.x1 + 5, roi.y1 + 15);
+      ctx.fillStyle = "rgba(0, 255, 255, 0.1)";
+    });
+  };
+
+  const drawEllipseROIs = (ctx) => {
+    ctx.strokeStyle = "#ff6600";
+    ctx.fillStyle = "rgba(255, 102, 0, 0.1)";
+    ctx.lineWidth = 2;
+    ctx.font = "12px Arial";
+
+    ellipseROIs.forEach((roi, idx) => {
+      const radiusX = Math.abs(roi.x2 - roi.x1) / 2;
+      const radiusY = Math.abs(roi.y2 - roi.y1) / 2;
+      const centerX = (roi.x1 + roi.x2) / 2;
+      const centerY = (roi.y1 + roi.y2) / 2;
+      
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+      
+      const area = Math.PI * radiusX * radiusY / 100;
+      ctx.fillStyle = "#ff6600";
+      ctx.fillText(`Ellipse ${idx + 1}: ${area.toFixed(1)} mm²`, centerX - 40, centerY - radiusY - 10);
+      ctx.fillStyle = "rgba(255, 102, 0, 0.1)";
+    });
+  };
+
   const drawAnnotations = (ctx) => {
     ctx.fillStyle = "#ff0000";
     ctx.font = "14px Arial";
@@ -610,9 +706,11 @@ export default function DicomViewer() {
     });
   };
 
-  const handleMouseDown = (e) => {
-    const canvas = canvas2DRef.current;
+  const handleMouseDown = (e, viewportIndex = 0) => {
+    const canvas = layout === "1x1" ? canvas2DRef.current : canvasRefs.current[viewportIndex];
     if (!canvas) return;
+    
+    setActiveViewport(viewportIndex);
     
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -621,9 +719,18 @@ export default function DicomViewer() {
     setIsDragging(true);
     setDragStart({ x, y });
 
-    if (activeTool === "measure") {
+    if (activeTool === "length") {
       const newMeasurement = { type: "line", x1: x, y1: y, x2: x, y2: y };
       setMeasurements([...measurements, newMeasurement]);
+    } else if (activeTool === "angle") {
+      // Angle tool needs 3 points
+      // For simplicity, we'll collect points on each click
+    } else if (activeTool === "rectangleROI") {
+      const newROI = { x1: x, y1: y, x2: x, y2: y };
+      setRectangleROIs([...rectangleROIs, newROI]);
+    } else if (activeTool === "ellipseROI") {
+      const newROI = { x1: x, y1: y, x2: x, y2: y };
+      setEllipseROIs([...ellipseROIs, newROI]);
     } else if (activeTool === "annotate") {
       const text = prompt("Enter annotation:");
       if (text) {
@@ -632,10 +739,10 @@ export default function DicomViewer() {
     }
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e, viewportIndex = 0) => {
     if (!isDragging) return;
 
-    const canvas = canvas2DRef.current;
+    const canvas = layout === "1x1" ? canvas2DRef.current : canvasRefs.current[viewportIndex];
     if (!canvas) return;
     
     const rect = canvas.getBoundingClientRect();
@@ -645,29 +752,70 @@ export default function DicomViewer() {
     const dy = y - dragStart.y;
 
     if (activeTool === "pan") {
-      setImageState(prev => ({
-        ...prev,
-        panX: prev.panX + dx,
-        panY: prev.panY + dy
-      }));
+      setViewports(prev => {
+        const updated = [...prev];
+        updated[viewportIndex] = {
+          ...updated[viewportIndex],
+          panX: updated[viewportIndex].panX + dx,
+          panY: updated[viewportIndex].panY + dy
+        };
+        return updated;
+      });
       setDragStart({ x, y });
-    } else if (activeTool === "window") {
+    } else if (activeTool === "windowLevel") {
       setImageState(prev => ({
         ...prev,
         windowWidth: Math.max(1, prev.windowWidth + dx * 2),
         windowLevel: prev.windowLevel + dy * 0.5
       }));
       setDragStart({ x, y });
-    } else if (activeTool === "measure" && measurements.length > 0) {
+    } else if (activeTool === "length" && measurements.length > 0) {
       const updatedMeasurements = [...measurements];
       updatedMeasurements[updatedMeasurements.length - 1].x2 = x;
       updatedMeasurements[updatedMeasurements.length - 1].y2 = y;
       setMeasurements(updatedMeasurements);
+    } else if (activeTool === "rectangleROI" && rectangleROIs.length > 0) {
+      const updatedROIs = [...rectangleROIs];
+      updatedROIs[updatedROIs.length - 1].x2 = x;
+      updatedROIs[updatedROIs.length - 1].y2 = y;
+      setRectangleROIs(updatedROIs);
+    } else if (activeTool === "ellipseROI" && ellipseROIs.length > 0) {
+      const updatedROIs = [...ellipseROIs];
+      updatedROIs[updatedROIs.length - 1].x2 = x;
+      updatedROIs[updatedROIs.length - 1].y2 = y;
+      setEllipseROIs(updatedROIs);
     }
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
+  };
+
+  const handleWheel = (e, viewportIndex = 0) => {
+    e.preventDefault();
+    const direction = e.deltaY > 0 ? 1 : -1;
+    
+    if (activeTool === "zoom") {
+      setViewports(prev => {
+        const updated = [...prev];
+        updated[viewportIndex] = {
+          ...updated[viewportIndex],
+          zoom: Math.max(0.2, Math.min(5, updated[viewportIndex].zoom + direction * 0.1))
+        };
+        return updated;
+      });
+    } else {
+      // Stack scroll
+      setViewports(prev => {
+        const updated = [...prev];
+        const maxSlice = (study?.file_ids?.length || 1) - 1;
+        updated[viewportIndex] = {
+          ...updated[viewportIndex],
+          slice: Math.max(0, Math.min(maxSlice, updated[viewportIndex].slice + direction))
+        };
+        return updated;
+      });
+    }
   };
 
   const handle3DRotation = (axis, delta) => {
@@ -696,24 +844,16 @@ export default function DicomViewer() {
     setWindowPreset(preset);
   };
 
-  const handleZoomIn = () => {
-    setImageState(prev => ({ ...prev, zoom: Math.min(prev.zoom + 0.2, 5) }));
-  };
-
-  const handleZoomOut = () => {
-    setImageState(prev => ({ ...prev, zoom: Math.max(prev.zoom - 0.2, 0.2) }));
-  };
-
-  const handleRotate = () => {
-    setImageState(prev => ({ ...prev, rotation: (prev.rotation + 90) % 360 }));
-  };
-
-  const handleFlipH = () => {
-    setImageState(prev => ({ ...prev, flipH: !prev.flipH }));
-  };
-
-  const handleInvert = () => {
-    setImageState(prev => ({ ...prev, invert: !prev.invert }));
+  const handleZoomTool = (direction) => {
+    const delta = direction === "in" ? 0.2 : -0.2;
+    setViewports(prev => {
+      const updated = [...prev];
+      updated[activeViewport] = {
+        ...updated[activeViewport],
+        zoom: Math.max(0.2, Math.min(5, updated[activeViewport].zoom + delta))
+      };
+      return updated;
+    });
   };
 
   const handleReset = () => {
@@ -731,17 +871,17 @@ export default function DicomViewer() {
       panY: 0
     });
     setRotation3D({ x: 0, y: 0, z: 0 });
+    setViewports([
+      { slice: 0, zoom: 1, panX: 0, panY: 0, rotation: 0 },
+      { slice: 0, zoom: 1, panX: 0, panY: 0, rotation: 0 },
+      { slice: 0, zoom: 1, panX: 0, panY: 0, rotation: 0 },
+      { slice: 0, zoom: 1, panX: 0, panY: 0, rotation: 0 }
+    ]);
     setMeasurements([]);
+    setAngles([]);
+    setRectangleROIs([]);
+    setEllipseROIs([]);
     setAnnotations([]);
-  };
-
-  const handleSliceChange = (direction) => {
-    const maxSlice = (study?.file_ids?.length || 1) - 1;
-    if (direction === "next") {
-      setCurrentSlice(prev => Math.min(prev + 1, maxSlice));
-    } else {
-      setCurrentSlice(prev => Math.max(prev - 1, 0));
-    }
   };
 
   if (loading) {
@@ -767,6 +907,7 @@ export default function DicomViewer() {
   }
 
   const totalSlices = study?.file_ids?.length || 1;
+  const layoutConfig = getLayoutConfig(layout);
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -779,7 +920,6 @@ export default function DicomViewer() {
               size="sm"
               onClick={() => navigate(-1)}
               className="text-slate-300 hover:text-white hover:bg-slate-700"
-              data-testid="back-button"
             >
               <ArrowLeft className="w-5 h-5 mr-2" />
               Back
@@ -793,7 +933,6 @@ export default function DicomViewer() {
             </div>
           </div>
           
-          {/* View Mode Selector */}
           <div className="flex items-center gap-3">
             <div className="flex gap-2">
               <Button
@@ -833,6 +972,25 @@ export default function DicomViewer() {
                 MIP
               </Button>
             </div>
+            
+            {viewMode === "2D" && (
+              <Select value={layout} onValueChange={setLayout}>
+                <SelectTrigger className="h-8 w-24 bg-slate-700 border-slate-600 text-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1x1">1×1</SelectItem>
+                  <SelectItem value="1x2">1×2</SelectItem>
+                  <SelectItem value="2x1">2×1</SelectItem>
+                  <SelectItem value="2x2">2×2</SelectItem>
+                  <SelectItem value="1x3">1×3</SelectItem>
+                  <SelectItem value="3x1">3×1</SelectItem>
+                  <SelectItem value="2x3">2×3</SelectItem>
+                  <SelectItem value="3x2">3×2</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            
             <Button size="sm" variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
               <Download className="w-4 h-4 mr-2" />
               Export
@@ -845,8 +1003,8 @@ export default function DicomViewer() {
         {/* Main Viewer */}
         <div className="flex-1 flex flex-col">
           {/* Tools */}
-          <div className="bg-slate-800/90 backdrop-blur-sm p-3 border-b border-slate-700">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="bg-slate-800/90 backdrop-blur-sm p-3 border-b border-slate-700 overflow-x-auto">
+            <div className="flex items-center gap-2 flex-nowrap min-w-max">
               {viewMode === "2D" && (
                 <>
                   <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
@@ -855,58 +1013,95 @@ export default function DicomViewer() {
                       variant={activeTool === "pan" ? "default" : "outline"}
                       onClick={() => setActiveTool("pan")}
                       className={activeTool === "pan" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                      title="Pan Tool"
                     >
                       <Move className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
-                      variant={activeTool === "window" ? "default" : "outline"}
-                      onClick={() => setActiveTool("window")}
-                      className={activeTool === "window" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                      variant={activeTool === "zoom" ? "default" : "outline"}
+                      onClick={() => setActiveTool("zoom")}
+                      className={activeTool === "zoom" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                      title="Zoom Tool (Mouse Wheel)"
                     >
-                      <Contrast className="w-4 h-4" />
+                      <ZoomIn className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
-                      variant={activeTool === "measure" ? "default" : "outline"}
+                      variant={activeTool === "windowLevel" ? "default" : "outline"}
+                      onClick={() => setActiveTool("windowLevel")}
+                      className={activeTool === "windowLevel" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                      title="Window/Level Tool"
+                    >
+                      <Contrast className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
+                    <Button
+                      size="sm"
+                      variant={activeTool === "length" ? "default" : "outline"}
                       onClick={() => {
-                        setActiveTool("measure");
+                        setActiveTool("length");
                         setShowMeasurements(true);
                       }}
-                      className={activeTool === "measure" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                      className={activeTool === "length" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                      title="Length Tool"
                     >
                       <Ruler className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={activeTool === "angle" ? "default" : "outline"}
+                      onClick={() => setActiveTool("angle")}
+                      className={activeTool === "angle" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                      title="Angle Tool"
+                    >
+                      <Triangle className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={activeTool === "rectangleROI" ? "default" : "outline"}
+                      onClick={() => setActiveTool("rectangleROI")}
+                      className={activeTool === "rectangleROI" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                      title="Rectangle ROI"
+                    >
+                      <Square className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={activeTool === "ellipseROI" ? "default" : "outline"}
+                      onClick={() => setActiveTool("ellipseROI")}
+                      className={activeTool === "ellipseROI" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                      title="Elliptical ROI"
+                    >
+                      <Circle className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
                       variant={activeTool === "annotate" ? "default" : "outline"}
                       onClick={() => setActiveTool("annotate")}
                       className={activeTool === "annotate" ? "bg-teal-600" : "border-slate-600 text-slate-300"}
+                      title="Annotation Tool"
                     >
                       <MessageSquare className="w-4 h-4" />
                     </Button>
                   </div>
 
                   <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
-                    <Button size="sm" variant="outline" onClick={handleZoomIn} className="border-slate-600 text-slate-300">
+                    <Button size="sm" variant="outline" onClick={() => handleZoomTool("in")} className="border-slate-600 text-slate-300">
                       <ZoomIn className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={handleZoomOut} className="border-slate-600 text-slate-300">
+                    <Button size="sm" variant="outline" onClick={() => handleZoomTool("out")} className="border-slate-600 text-slate-300">
                       <ZoomOut className="w-4 h-4" />
                     </Button>
                     <span className="text-sm text-slate-400 min-w-[50px] text-center">
-                      {(imageState.zoom * 100).toFixed(0)}%
+                      {(viewports[activeViewport]?.zoom * 100).toFixed(0)}%
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2 border-r border-slate-700 pr-3">
-                    <Button size="sm" variant="outline" onClick={handleRotate} className="border-slate-600 text-slate-300">
-                      <RotateCw className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={handleFlipH} className="border-slate-600 text-slate-300">
-                      <FlipHorizontal className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={handleInvert} className="border-slate-600 text-slate-300">
+                    <Button size="sm" variant="outline" onClick={() => setImageState(prev => ({ ...prev, invert: !prev.invert }))} className="border-slate-600 text-slate-300">
                       {imageState.invert ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                     </Button>
                   </div>
@@ -943,34 +1138,20 @@ export default function DicomViewer() {
                     <Maximize2 className="w-4 h-4 mr-1" />
                     Reset
                   </Button>
-
-                  <div className="ml-auto flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => handleSliceChange("prev")} disabled={currentSlice === 0} className="border-slate-600 text-slate-300">
-                      ←
-                    </Button>
-                    <span className="text-sm text-white font-mono min-w-[80px] text-center">
-                      {currentSlice + 1} / {totalSlices}
-                    </span>
-                    <Button size="sm" variant="outline" onClick={() => handleSliceChange("next")} disabled={currentSlice === totalSlices - 1} className="border-slate-600 text-slate-300">
-                      →
-                    </Button>
-                  </div>
                 </>
               )}
 
               {viewMode === "MPR" && (
                 <div className="flex items-center gap-4 w-full">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowCrosshair(!showCrosshair)}
-                      className={showCrosshair ? "bg-teal-600 text-white" : "border-slate-600 text-slate-300"}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                    <span className="text-xs text-slate-400">Crosshair</span>
-                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowCrosshair(!showCrosshair)}
+                    className={showCrosshair ? "bg-teal-600 text-white" : "border-slate-600 text-slate-300"}
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Crosshair
+                  </Button>
                   <Button size="sm" variant="outline" onClick={handleReset} className="border-slate-600 text-slate-300">
                     <Maximize2 className="w-4 h-4 mr-1" />
                     Reset All
@@ -1039,18 +1220,47 @@ export default function DicomViewer() {
           </div>
 
           {/* Viewport */}
-          <div className="flex-1 bg-black flex items-center justify-center p-4" data-testid="dicom-viewport">
-            {viewMode === "2D" && (
-              <canvas
-                ref={canvas2DRef}
-                width={800}
-                height={600}
-                className="border border-slate-700 cursor-crosshair"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-              />
+          <div className="flex-1 bg-black p-4 overflow-auto" data-testid="dicom-viewport">
+            {viewMode === "2D" && layout === "1x1" && (
+              <div className="flex items-center justify-center h-full">
+                <canvas
+                  ref={canvas2DRef}
+                  width={800}
+                  height={600}
+                  className="border border-slate-700 cursor-crosshair"
+                  onMouseDown={(e) => handleMouseDown(e, 0)}
+                  onMouseMove={(e) => handleMouseMove(e, 0)}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  onWheel={(e) => handleWheel(e, 0)}
+                />
+              </div>
+            )}
+
+            {viewMode === "2D" && layout !== "1x1" && (
+              <div 
+                className="grid gap-2 h-full"
+                style={{
+                  gridTemplateRows: `repeat(${layoutConfig.rows}, 1fr)`,
+                  gridTemplateColumns: `repeat(${layoutConfig.cols}, 1fr)`
+                }}
+              >
+                {Array.from({ length: layoutConfig.viewports }).map((_, idx) => (
+                  <div key={idx} className="flex items-center justify-center">
+                    <canvas
+                      ref={(el) => (canvasRefs.current[idx] = el)}
+                      width={400}
+                      height={300}
+                      className="border border-slate-700 cursor-crosshair w-full h-full"
+                      onMouseDown={(e) => handleMouseDown(e, idx)}
+                      onMouseMove={(e) => handleMouseMove(e, idx)}
+                      onMouseUp={handleMouseUp}
+                      onMouseLeave={handleMouseUp}
+                      onWheel={(e) => handleWheel(e, idx)}
+                    />
+                  </div>
+                ))}
+              </div>
             )}
 
             {viewMode === "MPR" && (
@@ -1095,11 +1305,15 @@ export default function DicomViewer() {
             )}
 
             {viewMode === "3D" && (
-              <canvas ref={canvas3DRef} width={800} height={600} className="border border-cyan-500" />
+              <div className="flex items-center justify-center h-full">
+                <canvas ref={canvas3DRef} width={800} height={600} className="border border-cyan-500" />
+              </div>
             )}
 
             {viewMode === "MIP" && (
-              <canvas ref={canvasMIPRef} width={800} height={600} className="border border-red-500" />
+              <div className="flex items-center justify-center h-full">
+                <canvas ref={canvasMIPRef} width={800} height={600} className="border border-red-500" />
+              </div>
             )}
           </div>
 
@@ -1132,10 +1346,9 @@ export default function DicomViewer() {
           )}
         </div>
 
-        {/* Sidebar - Reports */}
+        {/* Sidebar */}
         <div className="w-96 bg-slate-800 border-l border-slate-700 overflow-y-auto">
           <div className="p-6 space-y-6">
-            {/* Study Info */}
             <Card className="bg-slate-700 border-slate-600">
               <CardContent className="pt-6">
                 <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
@@ -1155,6 +1368,12 @@ export default function DicomViewer() {
                     <span className="text-slate-400">View Mode:</span>
                     <span className="text-teal-400 font-semibold">{viewMode}</span>
                   </div>
+                  {viewMode === "2D" && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Layout:</span>
+                      <span className="text-teal-400 font-semibold">{layout}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-slate-400">Status:</span>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -1168,10 +1387,6 @@ export default function DicomViewer() {
                     <span className="text-slate-400">Images:</span>
                     <span className="text-white">{totalSlices} slices</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Uploaded:</span>
-                    <span className="text-white">{new Date(study.uploaded_at).toLocaleDateString()}</span>
-                  </div>
                 </div>
                 {study.notes && (
                   <div className="mt-4 pt-4 border-t border-slate-600">
@@ -1182,7 +1397,6 @@ export default function DicomViewer() {
               </CardContent>
             </Card>
 
-            {/* AI Report */}
             {aiReport && (
               <Card className="bg-blue-950 border-blue-800">
                 <CardContent className="pt-6">
@@ -1211,7 +1425,6 @@ export default function DicomViewer() {
               </Card>
             )}
 
-            {/* Final Report */}
             {finalReport && (
               <Card className="bg-emerald-950 border-emerald-800">
                 <CardContent className="pt-6">
