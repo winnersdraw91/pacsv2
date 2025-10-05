@@ -436,7 +436,7 @@ const BillingManagement = () => {
   const fetchRates = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/billing/rates");
+      const response = await axios.get("/billing/rates");
       setRates(response.data);
     } catch (error) {
       console.error("Failed to fetch billing rates:", error);
