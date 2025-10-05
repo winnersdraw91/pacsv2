@@ -360,6 +360,19 @@ const StudiesView = () => {
     }
   };
 
+  const handleSearch = async (searchParams) => {
+    try {
+      const response = await axios.post("/studies/search", searchParams);
+      setStudies(response.data);
+    } catch (error) {
+      console.error("Search failed:", error);
+    }
+  };
+
+  const handleSearchReset = () => {
+    fetchStudies();
+  };
+
   if (loading) {
     return <div className="p-8 text-center"><div className="spinner mx-auto"></div></div>;
   }
