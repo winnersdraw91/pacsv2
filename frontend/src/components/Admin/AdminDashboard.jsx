@@ -8,6 +8,7 @@ import { Input } from "../ui/input";
 import { Building2, Users, FileText, Activity, LogOut, Plus, UserCheck, DollarSign } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Label } from "../ui/label";
+import AdvancedSearch from "../Search/AdvancedSearch";
 
 const Sidebar = ({ logout }) => {
   return (
