@@ -5,7 +5,7 @@ import { AuthContext } from "../../App";
 import { Button } from "../ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
-import { Building2, Users, FileText, Activity, LogOut, Plus, UserCheck } from "lucide-react";
+import { Building2, Users, FileText, Activity, LogOut, Plus, UserCheck, DollarSign } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Label } from "../ui/label";
 
