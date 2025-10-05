@@ -137,6 +137,9 @@ class FinalReport(BaseModel):
     diagnosis: str
     recommendations: Optional[str] = None
     approved_at: datetime
+    last_edited_at: Optional[datetime] = None
+    last_edited_by: Optional[str] = None
+    edit_history: List[Dict[str, Any]] = []
 
 class FinalReportCreate(BaseModel):
     findings: str
