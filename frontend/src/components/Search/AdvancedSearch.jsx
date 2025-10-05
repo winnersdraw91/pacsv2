@@ -120,12 +120,12 @@ export default function AdvancedSearch({ onSearch, onReset }) {
                     </div>
                     <div>
                       <Label>Gender</Label>
-                      <Select value={searchParams.patient_gender} onValueChange={(val) => updateParam("patient_gender", val)}>
+                      <Select value={searchParams.patient_gender || "all"} onValueChange={(val) => updateParam("patient_gender", val === "all" ? "" : val)}>
                         <SelectTrigger>
                           <SelectValue placeholder="All Genders" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All Genders</SelectItem>
+                          <SelectItem value="all">All Genders</SelectItem>
                           <SelectItem value="Male">Male</SelectItem>
                           <SelectItem value="Female">Female</SelectItem>
                           <SelectItem value="Other">Other</SelectItem>
