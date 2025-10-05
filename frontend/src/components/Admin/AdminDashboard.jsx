@@ -49,6 +49,12 @@ const Sidebar = ({ logout }) => {
             <span className="font-medium">All Studies</span>
           </div>
         </Link>
+        <Link to="/admin/billing" data-testid="billing-link">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors">
+            <DollarSign className="w-5 h-5" />
+            <span className="font-medium">Billing</span>
+          </div>
+        </Link>
       </nav>
 
       <Button
