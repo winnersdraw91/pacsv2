@@ -1146,13 +1146,20 @@ export default function DicomViewer() {
                       variant="outline"
                       onClick={() => setCineMode(!cineMode)}
                       className={cineMode ? "bg-teal-600 text-white" : "border-slate-600 text-slate-300"}
+                      title="Cine Mode - Auto-play through image slices"
                     >
                       {cineMode ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                     </Button>
                     <span className="text-xs text-slate-400">Cine</span>
                   </div>
 
-                  <Button size="sm" variant="outline" onClick={handleReset} className="border-slate-600 text-slate-300">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={handleReset} 
+                    className="border-slate-600 text-slate-300"
+                    title="Reset All - Restore default view settings"
+                  >
                     <Maximize2 className="w-4 h-4 mr-1" />
                     Reset
                   </Button>
