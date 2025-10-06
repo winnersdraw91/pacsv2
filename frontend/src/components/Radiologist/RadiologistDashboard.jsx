@@ -77,6 +77,113 @@ export default function RadiologistDashboard() {
     setStudies(allStudies);
   };
 
+  const handleDownloadStudy = async (studyId) => {
+    try {
+      const response = await axios.get(`/studies/${studyId}/download`, {
+        responseType: 'blob'
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `study_${studyId}.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      alert("Study downloaded successfully!");
+    } catch (error) {
+      console.error("Failed to download study:", error);
+      alert("Failed to download study");
+    }
+  };
+
+  const handleFileUpload = async (event) => {
+    const files = Array.from(event.target.files);
+    setUploadFiles(files);
+    
+    // Extract metadata from the first DICOM file
+    if (files.length > 0 && files[0].name.toLowerCase().endsWith('.dcm')) {
+      try {
+        const formData = new FormData();
+        formData.append('file', files[0]);
+        
+        const response = await axios.post('/files/extract-metadata', formData);
+        const metadata = response.data;
+        
+        setExtractedMetadata(metadata);
+        
+        // Auto-fill form with DICOM metadata
+        setUploadData({
+          patient_name: metadata.patient_name || "",
+          patient_age: metadata.calculated_age || metadata.patient_age || "",
+          patient_gender: metadata.patient_gender || "",
+          modality: metadata.modality || "",
+          study_description: metadata.study_description || "",
+          final_report_text: ""
+        });
+      } catch (error) {
+        console.error("Failed to extract metadata:", error);
+        // Continue without metadata
+      }
+    }
+  };
+
+  const handleUploadWithReport = async () => {
+    if (uploadFiles.length === 0) {
+      alert("Please select DICOM files to upload");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      
+      // Add DICOM files
+      uploadFiles.forEach(file => {
+        formData.append('files', file);
+      });
+      
+      // Add form data
+      formData.append('patient_name', uploadData.patient_name);
+      formData.append('patient_age', uploadData.patient_age.toString());
+      formData.append('patient_gender', uploadData.patient_gender);
+      formData.append('modality', uploadData.modality);
+      formData.append('study_description', uploadData.study_description);
+      formData.append('final_report_text', uploadData.final_report_text);
+      
+      const response = await axios.post('/studies/upload-with-report', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      alert("Study uploaded successfully with report!");
+      setShowUploadDialog(false);
+      setUploadFiles([]);
+      setUploadData({
+        patient_name: "",
+        patient_age: "",
+        patient_gender: "",
+        modality: "",
+        study_description: "",
+        final_report_text: ""
+      });
+      setExtractedMetadata(null);
+      
+      // Refresh data
+      fetchData();
+      
+    } catch (error) {
+      console.error("Failed to upload study:", error);
+      alert("Failed to upload study with report");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleAssignToMe = async (studyId) => {
     try {
       await axios.patch(`/studies/${studyId}/assign`);
