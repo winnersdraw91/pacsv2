@@ -174,8 +174,10 @@ export default function DicomViewer() {
     setLoadingFiles(true);
     const files = {};
     const images = {};
+    let successfullyLoaded = 0;
     
     try {
+      // Load files with progressive display
       for (let i = 0; i < Math.min(fileIds.length, 10); i++) { // Load first 10 files
         const fileId = fileIds[i];
         try {
