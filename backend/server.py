@@ -23,8 +23,6 @@ from pydicom.uid import generate_uid
 from pathlib import Path
 import zipfile
 import json
-import zipfile
-import json
 
 # Load environment
 ROOT_DIR = Path(__file__).parent
