@@ -111,7 +111,7 @@ export default function DicomViewer() {
     if (study) {
       drawAllViews();
     }
-  }, [study, imageState, currentSlice, viewMode, axialSlice, sagittalSlice, coronalSlice, rotation3D, mipThickness, layout, viewports]);
+  }, [study, dicomImages, imageState, currentSlice, viewMode, axialSlice, sagittalSlice, coronalSlice, rotation3D, mipThickness, layout, viewports]);
 
   useEffect(() => {
     if (cineMode && viewMode === "2D") {
