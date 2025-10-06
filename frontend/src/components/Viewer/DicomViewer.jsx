@@ -114,6 +114,14 @@ export default function DicomViewer() {
     }
   }, [study, imageState, currentSlice, viewMode, axialSlice, sagittalSlice, coronalSlice, rotation3D, mipThickness, layout, viewports]);
 
+  // Separate effect to trigger redraw when DICOM images are loaded (prevent infinite loop)
+  useEffect(() => {
+    if (Object.keys(dicomImages).length > 0 && !loadingFiles) {
+      console.log(`🎯 DICOM IMAGES LOADED: Triggering redraw for ${Object.keys(dicomImages).length} images`);
+      drawAllViews();
+    }
+  }, [Object.keys(dicomImages).length, loadingFiles]); // Only depend on count and loading state
+
   useEffect(() => {
     if (cineMode && viewMode === "2D") {
       cineIntervalRef.current = setInterval(() => {
