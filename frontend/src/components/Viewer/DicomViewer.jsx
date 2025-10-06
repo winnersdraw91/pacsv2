@@ -108,11 +108,19 @@ export default function DicomViewer() {
     };
   }, [studyId]);
 
+  // Separate effect for DICOM file loading (prevent infinite loop)
+  useEffect(() => {
+    if (study && study.file_ids && study.file_ids.length > 0 && Object.keys(dicomImages).length === 0 && !loadingFiles) {
+      console.log(`🔄 DICOM LOADING TRIGGER: Loading ${study.file_ids.length} DICOM files for study ${study.study_id}`);
+      loadDicomFiles(study.file_ids);
+    }
+  }, [study?.study_id, study?.file_ids?.length]); // Only depend on stable study identifiers
+
   useEffect(() => {
     if (study) {
       drawAllViews();
     }
-  }, [study, imageState, currentSlice, viewMode, axialSlice, sagittalSlice, coronalSlice, rotation3D, mipThickness, layout, viewports]);
+  }, [study, imageState, currentSlice, viewMode, axialSlice, sagittalSlice, coronalSlice, rotation3D, mipThickness, layout]);
 
   // Separate effect to trigger redraw when DICOM images are loaded (prevent infinite loop)
   useEffect(() => {
