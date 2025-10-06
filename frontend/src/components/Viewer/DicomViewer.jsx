@@ -43,6 +43,11 @@ export default function DicomViewer() {
   const [studyOverlay, setStudyOverlay] = useState(false);
   const [overlayOpacity, setOverlayOpacity] = useState(0.5);
   
+  // DICOM file data
+  const [dicomFiles, setDicomFiles] = useState({});
+  const [dicomImages, setDicomImages] = useState({});
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  
   // Multi-viewport state
   const [viewports, setViewports] = useState([
     { slice: 0, zoom: 1, panX: 0, panY: 0, rotation: 0 },
