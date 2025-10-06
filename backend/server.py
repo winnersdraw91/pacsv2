@@ -1325,7 +1325,7 @@ async def generate_invoice(invoice_data: InvoiceCreate, current_user: User = Dep
 @api_router.get("/billing/invoices", response_model=List[Invoice])
 async def get_invoices(
     centre_id: Optional[str] = None,
-    status: Optional[str] = None,
+    invoice_status: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
     query = {}
