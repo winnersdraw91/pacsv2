@@ -45,6 +45,38 @@ export default function TechnicianDashboard() {
     }
   };
 
+  const handleFileSelection = async (selectedFiles) => {
+    setFiles(selectedFiles);
+    
+    // Extract metadata from the first DICOM file
+    if (selectedFiles.length > 0 && selectedFiles[0].name.toLowerCase().endsWith('.dcm')) {
+      try {
+        const metadataFormData = new FormData();
+        metadataFormData.append('file', selectedFiles[0]);
+        
+        const response = await axios.post('/files/extract-metadata', metadataFormData);
+        const metadata = response.data;
+        
+        // Auto-fill form with DICOM metadata
+        setFormData(prev => ({
+          ...prev,
+          patient_name: metadata.patient_name || prev.patient_name,
+          patient_age: metadata.calculated_age || metadata.patient_age || prev.patient_age,
+          patient_gender: metadata.patient_gender === 'M' ? 'Male' : 
+                          metadata.patient_gender === 'F' ? 'Female' : 
+                          metadata.patient_gender === 'O' ? 'Other' : prev.patient_gender,
+          modality: metadata.modality || prev.modality,
+          notes: metadata.study_description || prev.notes
+        }));
+        
+        alert(`DICOM metadata extracted! Patient: ${metadata.patient_name || 'N/A'}, Modality: ${metadata.modality || 'N/A'}`);
+      } catch (error) {
+        console.error("Failed to extract metadata:", error);
+        // Continue without metadata extraction
+      }
+    }
+  };
+
   const handleUpload = async (e) => {
     e.preventDefault();
     if (files.length === 0) {
