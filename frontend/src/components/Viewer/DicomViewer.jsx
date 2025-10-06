@@ -148,12 +148,10 @@ export default function DicomViewer() {
       console.log(`📋 STUDY DATA: Received study data for ${studyRes.data.patient_name}`, studyRes.data);
       setStudy(studyRes.data);
       
-      // Load DICOM files if available (only if not already loaded)
-      if (studyRes.data.file_ids && studyRes.data.file_ids.length > 0 && Object.keys(dicomImages).length === 0) {
-        console.log(`📁 STUDY FILES: Study has ${studyRes.data.file_ids.length} DICOM files`);
-        await loadDicomFiles(studyRes.data.file_ids);
-      } else if (Object.keys(dicomImages).length > 0) {
-        console.log(`📁 STUDY FILES: DICOM files already loaded (${Object.keys(dicomImages).length} images)`);
+      // Store file IDs for separate loading effect (prevent infinite loop)
+      if (studyRes.data.file_ids && studyRes.data.file_ids.length > 0) {
+        console.log(`📁 STUDY FILES: Study has ${studyRes.data.file_ids.length} DICOM files - will load in separate effect`);
+        // Don't load files here - let the separate useEffect handle it
       } else {
         console.warn(`⚠️ STUDY FILES: No DICOM files found in study data`);
       }
