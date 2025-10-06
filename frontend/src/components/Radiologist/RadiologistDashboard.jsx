@@ -281,15 +281,29 @@ export default function RadiologistDashboard() {
                 <p className="text-indigo-100 text-sm">Welcome, {user?.name}</p>
               </div>
             </div>
-            <Button
-              onClick={logout}
-              variant="outline"
-              className="border-white/30 text-white hover:bg-white/10"
-              data-testid="logout-button"
-            >
-              <LogOut className="w-5 h-5 mr-2" />
-              Logout
-            </Button>
+            <div className="flex gap-3">
+              <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="border-white/30 text-white hover:bg-white/10"
+                  >
+                    <Upload className="w-5 h-5 mr-2" />
+                    Upload Study
+                  </Button>
+                </DialogTrigger>
+              </Dialog>
+              
+              <Button
+                onClick={logout}
+                variant="outline"
+                className="border-white/30 text-white hover:bg-white/10"
+                data-testid="logout-button"
+              >
+                <LogOut className="w-5 h-5 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </div>
