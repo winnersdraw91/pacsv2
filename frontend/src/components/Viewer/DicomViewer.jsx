@@ -934,7 +934,13 @@ export default function DicomViewer() {
       console.log(`📊 RENDER SLICE ${slice}: Processed ${pixelsProcessed} pixels, ${pixelsVisible} visible (${((pixelsVisible/pixelsProcessed)*100).toFixed(1)}%)`);
       
       // Draw the image
-      ctx.putImageData(imageData, 0, 0);
+      try {
+        ctx.putImageData(imageData, 0, 0);
+        console.log(`✅ CANVAS DRAW ${slice}: Successfully drew ImageData to canvas at (0,0)`);
+      } catch (drawError) {
+        console.error(`❌ CANVAS DRAW ${slice}: Failed to draw ImageData to canvas:`, drawError);
+        throw drawError;
+      }
       
       // Add slice information
       ctx.fillStyle = "#00ff00";
