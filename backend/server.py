@@ -1056,7 +1056,7 @@ async def download_study(study_id: str, current_user: User = Depends(get_current
                     file_contents = await grid_out.read()
                     filename = grid_out.filename or f"dicom_{file_id}.dcm"
                     zip_file.writestr(f"DICOM/{filename}", file_contents)
-                except:
+                except Exception:
                     continue
             
             # Add study metadata
