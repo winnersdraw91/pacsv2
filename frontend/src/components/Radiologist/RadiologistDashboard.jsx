@@ -451,6 +451,14 @@ export default function RadiologistDashboard() {
                               <Eye className="w-4 h-4 mr-1" />
                               View
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDownloadStudy(study.study_id)}
+                              title="Download Study as ZIP"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
                             {study.status === "completed" ? (
                               <Button
                                 size="sm"
