@@ -1933,7 +1933,7 @@ export default function DicomViewer() {
 
             {viewMode === "MINIP" && (
               <div className="flex items-center justify-center h-full">
-                <canvas ref={canvasMIPRef} width={800} height={600} className="border border-green-500" />
+                <canvas ref={canvasMINIPRef} width={800} height={600} className="border border-green-500" />
               </div>
             )}
           </div>
