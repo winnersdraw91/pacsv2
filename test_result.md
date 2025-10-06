@@ -267,6 +267,18 @@ backend:
           agent: "testing"
           comment: "COMPREHENSIVE BACKEND TESTING COMPLETE: ✅ AUTHENTICATION RESOLVED: Technician authentication successful (technician@pacs.com/tech123) ✅ POST /api/files/extract-metadata endpoint validates input correctly ✅ DICOM metadata extraction functionality operational ✅ Role-based access control working properly (technician correctly denied admin access) ✅ GET /api/studies endpoint working for technician role (returns 0 studies - correct for new technician) ✅ Study management endpoints accessible (mark-draft, request-delete, assign) ✅ Study search functionality working with advanced filters. BACKEND AUTHENTICATION AND UPLOAD WORKFLOW ISSUES FULLY RESOLVED."
 
+  - task: "DICOM File Serving Debug Investigation"
+    implemented: true
+    working: false
+    file: "server.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: false
+          agent: "testing"
+          comment: "DICOM DEBUG INVESTIGATION COMPLETE: ✅ MAJOR DISCOVERY: System contains 6 studies with 53 real DICOM files (significant increase from previous 1 file). Study OR2UUPB5 (reema) has 48 valid DICOM files (2.5KB-10MB), Study VHL1ZDY6, VR5NUCTE, P771JTOZ, QDDWHGBR have 1 file each. ✅ FILE SERVING: 52/53 files successfully served with proper application/dicom content-type and valid DICOM headers (98.1% success rate). ❌ CRITICAL ISSUES: (1) Study RS6P4028 file 68e2b9605f44d6da1eea869c returns 404 - this was previously working file mentioned in test history. (2) Individual study retrieval GET /api/studies/{study_id} returns 404 for 4/6 studies indicating API endpoint inconsistency. (3) Some uploaded files are too small (37-240 bytes) and lack proper DICOM headers. ✅ AUTHENTICATION: Proper access control working. ✅ DICOM VIEWER READY: Multiple studies available for testing, recommend using Study OR2UUPB5 with 48 comprehensive DICOM files. REQUIRES INVESTIGATION: Why RS6P4028 file disappeared and study endpoint inconsistencies."
+
 frontend:
   - task: "DICOM Viewer Real File Integration"
     implemented: true
