@@ -360,11 +360,12 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Complete production system validation"
-    - "Enhanced PACS features verification"
-  stuck_tasks: []
+    - "DICOM Viewer JavaScript Runtime Error Fix"
+    - "Real DICOM Image Display Verification"
+  stuck_tasks: 
+    - "DICOM Viewer Real File Integration"
   test_all: false
-  test_priority: "production_ready_validation"
+  test_priority: "critical_dicom_viewer_fix"
 
   - task: "Advanced Image Comparison"
     implemented: true
