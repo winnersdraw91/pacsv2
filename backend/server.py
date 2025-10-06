@@ -894,6 +894,66 @@ async def get_dicom_file(file_id: str, current_user: User = Depends(get_current_
         raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
 
 @api_router.get("/files/{file_id}/metadata")
+async def get_dicom_file_metadata(file_id: str, current_user: User = Depends(get_current_user)):
+    """Extract metadata from a stored DICOM file"""
+    try:
+        from bson import ObjectId
+        grid_out = await fs.open_download_stream(ObjectId(file_id))
+        contents = await grid_out.read()
+        metadata = extract_dicom_metadata(contents)
+        return metadata
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"File not found or metadata extraction failed: {str(e)}")
+
+@api_router.post("/files/extract-metadata")
+async def extract_metadata_from_upload(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+    """Extract metadata from uploaded DICOM file without storing it"""
+    try:
+        contents = await file.read()
+        metadata = extract_dicom_metadata(contents)
+        return metadata
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to extract metadata: {str(e)}")
+
+@api_router.put("/files/{file_id}/update-metadata")
+async def update_dicom_file_metadata(
+    file_id: str,
+    patient_updates: Dict[str, Any],
+    current_user: User = Depends(get_current_user)
+):
+    """Update DICOM file metadata with new patient information"""
+    try:
+        from bson import ObjectId
+        
+        # Get original file
+        grid_out = await fs.open_download_stream(ObjectId(file_id))
+        original_contents = await grid_out.read()
+        original_filename = grid_out.filename
+        
+        # Modify DICOM metadata
+        modified_contents = modify_dicom_metadata(original_contents, patient_updates)
+        
+        # Delete old file
+        await fs.delete(ObjectId(file_id))
+        
+        # Upload modified file with same filename
+        new_file_id = await fs.upload_from_stream(
+            original_filename,
+            io.BytesIO(modified_contents),
+            metadata={"updated_at": datetime.now(timezone.utc)}
+        )
+        
+        return {
+            "message": "DICOM metadata updated successfully",
+            "old_file_id": file_id,
+            "new_file_id": str(new_file_id),
+            "updated_fields": list(patient_updates.keys())
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to update metadata: {str(e)}")
+
+@api_router.get("/files/{file_id}/metadata")
 async def get_dicom_metadata(file_id: str, current_user: User = Depends(get_current_user)):
     """Extract and return DICOM metadata from a file"""
     try:
