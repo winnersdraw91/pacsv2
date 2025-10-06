@@ -371,7 +371,8 @@ test_plan:
   current_focus:
     - "DICOM Canvas Rendering Investigation"
     - "DICOM Pixel Data Display Fix"
-  stuck_tasks: []
+  stuck_tasks:
+    - "DICOM Viewer Real File Integration"
   test_all: false
   test_priority: "canvas_rendering_fix"
   backend_auth_verified: true
