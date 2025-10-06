@@ -460,21 +460,15 @@ export default function DicomViewer() {
     ctx.fillStyle = imageState.invert ? "#ffffff" : "#000000";
     ctx.fillRect(0, 0, width, height);
 
-    ctx.save();
-    ctx.translate(width / 2 + viewport.panX, height / 2 + viewport.panY);
-    ctx.scale(viewport.zoom, viewport.zoom);
-    ctx.rotate((viewport.rotation * Math.PI) / 180);
-    if (imageState.flipH) ctx.scale(-1, 1);
-    if (imageState.flipV) ctx.scale(1, -1);
-
+    // TEMPORARY: Simplified rendering without transformations to debug DICOM display
+    console.log(`🎯 DRAW CANVAS ${viewportIndex}: Using simplified rendering for debugging`);
+    
     try {
       renderDicomImage(ctx, width, height, viewport.slice);
       console.log(`✅ DRAW CANVAS ${viewportIndex}: Successfully rendered DICOM image for slice ${viewport.slice}`);
     } catch (renderError) {
       console.error(`❌ DRAW CANVAS ${viewportIndex}: Error rendering DICOM image:`, renderError);
     }
-    
-    ctx.restore();
 
     drawOverlayInfo(ctx, width, height, viewport.slice, viewportIndex);
     
