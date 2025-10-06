@@ -379,14 +379,24 @@ export default function RadiologistDashboard() {
                         <td>{study.patient_age}Y / {study.patient_gender}</td>
                         <td>{new Date(study.uploaded_at).toLocaleDateString()}</td>
                         <td>
-                          <Button
-                            size="sm"
-                            onClick={() => handleAssignToMe(study.study_id)}
-                            className="bg-indigo-600 hover:bg-indigo-700"
-                            data-testid={`assign-study-${study.study_id}`}
-                          >
-                            Assign to Me
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleAssignToMe(study.study_id)}
+                              className="bg-indigo-600 hover:bg-indigo-700"
+                              data-testid={`assign-study-${study.study_id}`}
+                            >
+                              Assign to Me
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDownloadStudy(study.study_id)}
+                              title="Download Study as ZIP"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
