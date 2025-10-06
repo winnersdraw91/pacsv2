@@ -1256,6 +1256,72 @@ async def cleanup_mock_data(current_user: User = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to cleanup mock data: {str(e)}")
 
+@api_router.post("/admin/create-demo-users")
+async def create_demo_users(current_user: User = Depends(get_current_user)):
+    """Create demo radiologist and technician users"""
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only admins can create demo users")
+    
+    try:
+        created_users = []
+        
+        # Create radiologist user
+        radiologist_exists = await db.users.find_one({"email": "radiologist@pacs.com"})
+        if not radiologist_exists:
+            radiologist_data = {
+                "id": generate_study_id(),
+                "name": "Dr. Sarah Johnson",
+                "email": "radiologist@pacs.com", 
+                "password": hash_password("radio123"),
+                "role": UserRole.RADIOLOGIST,
+                "specialization": "Radiology",
+                "license_number": "RAD123456",
+                "created_at": datetime.now(timezone.utc),
+                "is_active": True
+            }
+            await db.users.insert_one(radiologist_data)
+            created_users.append("radiologist@pacs.com")
+        
+        # Create technician user with centre
+        technician_exists = await db.users.find_one({"email": "technician@pacs.com"})
+        if not technician_exists:
+            # Create a demo centre for technician
+            centre_data = {
+                "id": generate_study_id(),
+                "name": "Demo Diagnostic Centre",
+                "address": "123 Medical Drive, Healthcare City",
+                "phone": "+1-555-0123",
+                "email": "centre@pacs.com",
+                "created_at": datetime.now(timezone.utc),
+                "is_active": True
+            }
+            await db.centres.insert_one(centre_data)
+            
+            technician_data = {
+                "id": generate_study_id(),
+                "name": "Tech Mike Wilson",
+                "email": "technician@pacs.com",
+                "password": hash_password("tech123"),
+                "role": UserRole.TECHNICIAN,
+                "centre_id": centre_data["id"],
+                "created_at": datetime.now(timezone.utc),
+                "is_active": True
+            }
+            await db.users.insert_one(technician_data)
+            created_users.append("technician@pacs.com")
+        
+        return {
+            "message": "Demo users created successfully",
+            "created_users": created_users,
+            "credentials": {
+                "radiologist": "radiologist@pacs.com / radio123",
+                "technician": "technician@pacs.com / tech123"
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create demo users: {str(e)}")
+
 # ==================== DASHBOARD STATS ====================
 
 @api_router.get("/dashboard/stats")
