@@ -191,8 +191,18 @@ export default function DicomViewer() {
           const arrayBuffer = response.data;
           const byteArray = new Uint8Array(arrayBuffer);
           
-          // Parse DICOM file
-          const dataSet = dicomParser.parseDicom(byteArray);
+          console.log(`📋 DICOM PARSE ${i+1}: Parsing ${byteArray.length} bytes with dicom-parser`);
+          
+          // Parse DICOM file with error handling
+          let dataSet;
+          try {
+            dataSet = dicomParser.parseDicom(byteArray);
+            console.log(`✅ DICOM PARSE ${i+1}: Successfully parsed DICOM headers`);
+          } catch (parseError) {
+            console.error(`❌ DICOM PARSE ${i+1}: Failed to parse DICOM file:`, parseError);
+            continue; // Skip this file
+          }
+          
           files[i] = dataSet;
           
           // Extract pixel data and create image
