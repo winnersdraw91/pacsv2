@@ -164,6 +164,7 @@ export default function DicomViewer() {
   };
 
   const loadDicomFiles = async (fileIds) => {
+    console.log(`🔍 DICOM LOADING: Starting to load ${fileIds.length} DICOM files:`, fileIds);
     setLoadingFiles(true);
     const files = {};
     const images = {};
@@ -172,13 +173,15 @@ export default function DicomViewer() {
       for (let i = 0; i < Math.min(fileIds.length, 10); i++) { // Load first 10 files
         const fileId = fileIds[i];
         try {
-          console.log(`Loading DICOM file: ${fileId}`);
+          console.log(`📁 DICOM FILE ${i+1}/${Math.min(fileIds.length, 10)}: Loading file ID: ${fileId}`);
           
           // Fetch DICOM file as ArrayBuffer
           const response = await axios.get(`/files/${fileId}`, {
             responseType: 'arraybuffer',
             timeout: 10000
           });
+          
+          console.log(`✅ DICOM FILE ${i+1}: Successfully downloaded ${response.data.byteLength} bytes`);
           
           const arrayBuffer = response.data;
           const byteArray = new Uint8Array(arrayBuffer);
