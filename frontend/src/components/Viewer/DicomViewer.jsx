@@ -25,6 +25,7 @@ export default function DicomViewer() {
   const canvasCoronalRef = useRef(null);
   const canvas3DRef = useRef(null);
   const canvasMIPRef = useRef(null);
+  const canvasMINIPRef = useRef(null);
   
   const [study, setStudy] = useState(null);
   const [aiReport, setAiReport] = useState(null);
