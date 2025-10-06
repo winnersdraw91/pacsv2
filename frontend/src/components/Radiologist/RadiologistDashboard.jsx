@@ -4,7 +4,7 @@ import { AuthContext } from "../../App";
 import axios from "axios";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
-import { Activity, FileText, Eye, LogOut, CheckCircle, Edit, History } from "lucide-react";
+import { Activity, FileText, Eye, LogOut, CheckCircle, Edit, History, Download, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
