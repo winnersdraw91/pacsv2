@@ -341,7 +341,7 @@ export default function DicomViewer() {
     if (imageState.flipH) ctx.scale(-1, 1);
     if (imageState.flipV) ctx.scale(1, -1);
 
-    generateMockDicomImage(ctx, width, height, viewport.slice);
+    renderDicomImage(ctx, width, height, viewport.slice);
     ctx.restore();
 
     drawOverlayInfo(ctx, width, height, viewport.slice, viewportIndex);
