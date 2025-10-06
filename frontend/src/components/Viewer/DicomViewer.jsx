@@ -786,7 +786,20 @@ export default function DicomViewer() {
 
   const renderActualDicomSlice = (ctx, width, height, dicomImage, slice) => {
     try {
+      console.log(`🖼️ RENDER SLICE ${slice}: Starting render with DICOM data`, {
+        rows: dicomImage.rows,
+        columns: dicomImage.columns,
+        pixelDataLength: dicomImage.pixelData?.length,
+        windowCenter: dicomImage.windowCenter,
+        windowWidth: dicomImage.windowWidth
+      });
+      
       const { rows, columns, pixelData, windowCenter, windowWidth } = dicomImage;
+      
+      if (!pixelData || pixelData.length === 0) {
+        console.error(`❌ RENDER SLICE ${slice}: No pixel data available`);
+        throw new Error("No pixel data available");
+      }
       
       // Create image data
       const imageData = ctx.createImageData(width, height);
