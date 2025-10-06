@@ -282,9 +282,9 @@ backend:
 frontend:
   - task: "DICOM Viewer Real File Integration"
     implemented: true
-    working: true
+    working: false
     file: "DicomViewer.jsx"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
@@ -294,6 +294,9 @@ frontend:
         - working: true
           agent: "testing"
           comment: "ENHANCED PACS FRONTEND VALIDATION: ✅ Study RS6P4028 DICOM viewer accessible and functional with enhanced features ✅ Volume Measurements (3D ROI) tool available in toolbar ✅ Essential DICOM tools working (Pan, Zoom, Window/Level) ✅ Multiple view modes available (2D, MPR, 3D) ✅ AI Analysis Report panel displays real patient data and findings ✅ Study Information panel shows correct metadata (Study ID: RS6P4028, Modality: CT, Status: assigned) ⚠️ Real DICOM file loading has 404 errors for file access but viewer still functional ⚠️ Patient data not visible in main viewport (may be due to file loading issues) ✅ Enhanced DICOM viewer UI is production-ready with all requested features implemented."
+        - working: false
+          agent: "testing"
+          comment: "CRITICAL DICOM VIEWER FAILURE: ❌ Study OR2UUPB5 (48 real DICOM files, 8.5MB+ each) cannot be displayed due to JavaScript runtime errors in DICOM viewer component ❌ Viewer stuck on 'Loading study...' screen indefinitely with red error overlay showing 'Uncaught runtime errors' ❌ JavaScript querySelector syntax errors preventing proper DICOM file processing ❌ Cannot verify 'Real DICOM Data' indicators or patient metadata display due to loading failure ✅ BACKEND CONFIRMED WORKING: Study OR2UUPB5 exists, 48 DICOM files served correctly (HTTP 200), authentication functional ❌ FRONTEND BLOCKING ISSUE: JavaScript errors in DicomViewer.jsx component prevent real medical image display. URGENT: Fix JavaScript runtime errors to enable DICOM viewer functionality with real medical imaging data."
 
   - task: "Billing Dashboard UI"
     implemented: true
