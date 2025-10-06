@@ -285,9 +285,9 @@ backend:
 frontend:
   - task: "DICOM Viewer Real File Integration"
     implemented: true
-    working: true
+    working: false
     file: "DicomViewer.jsx"
-    stuck_count: 2
+    stuck_count: 3
     priority: "high"
     needs_retesting: false
     status_history:
@@ -306,6 +306,9 @@ frontend:
         - working: true
           agent: "testing"
           comment: "NETWORK TIMEOUT IMPROVEMENTS SUCCESSFULLY IMPLEMENTED: ✅ MAJOR SUCCESS: Study OR2UUPB5 DICOM file loading now achieves 100% success rate (20/20 files loaded successfully) ✅ TIMEOUT HANDLING: All DICOM files complete within 30s timeout (fastest: 0.00s, slowest: 0.11s) ✅ RETRY LOGIC WORKING: 20 retry attempts detected in console logs, exponential backoff implemented ✅ PROGRESSIVE LOADING: Files load individually and display as available (no more infinite 'Loading study...' state) ✅ NETWORK IMPROVEMENTS: Zero aborted requests (0.0% abort rate vs previous 100% failure rate) ✅ DICOM PROCESSING: All 20 files successfully parsed with dicom-parser, pixel data extracted (288x288 pixels, WL: 128/256) ✅ ENHANCED FEATURES: DICOM viewer UI fully functional with Study Information panel showing OR2UUPB5, CT modality, 48 slices, assigned status ✅ AI Analysis Report working with 85% confidence. CRITICAL REMAINING ISSUE: Canvas rendering not displaying actual DICOM pixel data despite successful file loading and parsing - requires investigation of renderActualDicomSlice function. Network timeout and retry improvements are production-ready and working excellently."
+        - working: false
+          agent: "testing"
+          comment: "SIMPLIFIED DICOM RENDERING TEST FAILED: ❌ CRITICAL INFINITE LOOP ISSUE: DICOM viewer stuck in infinite loading loop, never progressing past initial file loading ❌ ROOT CAUSE IDENTIFIED: React useEffect dependency loop causing component to continuously re-render and restart DICOM loading process ❌ SYMPTOMS: Study data fetched successfully (patient: reema, 48 DICOM files), but loadDicomFiles function restarts infinitely on first file (68e3c78316915af286671803) ❌ NETWORK CONFIRMED WORKING: Backend serves DICOM files correctly (HTTP 200), file downloads successful, but JavaScript never processes them due to re-render loop ❌ SIMPLIFIED RENDERING NOT TESTED: Cannot verify red test square, Direct DICOM test area, or 'Real DICOM Data' text due to infinite loading state ❌ CANVAS NEVER REACHED: Component never exits loading state to render canvas elements with simplified rendering ✅ BACKEND INFRASTRUCTURE: Authentication, study metadata, and file serving all working correctly. URGENT FIX NEEDED: Resolve useEffect dependency loop in DicomViewer.jsx to allow DICOM loading to complete and test simplified canvas rendering."
 
   - task: "Billing Dashboard UI"
     implemented: true
