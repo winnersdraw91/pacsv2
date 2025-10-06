@@ -267,7 +267,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Comprehensive Testing Complete"
+    - "DICOM File Serving Testing Complete"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
