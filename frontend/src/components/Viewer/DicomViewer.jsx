@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import dicomParser from "dicom-parser";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { 
