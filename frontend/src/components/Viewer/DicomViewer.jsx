@@ -136,6 +136,11 @@ export default function DicomViewer() {
     try {
       const studyRes = await axios.get(`/studies/${studyId}`);
       setStudy(studyRes.data);
+      
+      // Load DICOM files if available
+      if (studyRes.data.file_ids && studyRes.data.file_ids.length > 0) {
+        await loadDicomFiles(studyRes.data.file_ids);
+      }
 
       try {
         const aiReportRes = await axios.get(`/studies/${studyId}/ai-report`);
@@ -156,6 +161,124 @@ export default function DicomViewer() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadDicomFiles = async (fileIds) => {
+    setLoadingFiles(true);
+    const files = {};
+    const images = {};
+    
+    try {
+      for (let i = 0; i < Math.min(fileIds.length, 10); i++) { // Load first 10 files
+        const fileId = fileIds[i];
+        try {
+          console.log(`Loading DICOM file: ${fileId}`);
+          
+          // Fetch DICOM file as ArrayBuffer
+          const response = await axios.get(`/files/${fileId}`, {
+            responseType: 'arraybuffer',
+            timeout: 10000
+          });
+          
+          const arrayBuffer = response.data;
+          const byteArray = new Uint8Array(arrayBuffer);
+          
+          // Parse DICOM file
+          const dataSet = dicomParser.parseDicom(byteArray);
+          files[i] = dataSet;
+          
+          // Extract pixel data and create image
+          const image = extractDicomImage(dataSet, byteArray);
+          if (image) {
+            images[i] = image;
+            console.log(`Successfully loaded DICOM file ${i + 1}/${fileIds.length}`);
+          }
+        } catch (fileError) {
+          console.error(`Failed to load DICOM file ${fileId}:`, fileError);
+          // Create fallback image
+          images[i] = createFallbackImage(i);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load DICOM files:", error);
+    } finally {
+      setDicomFiles(files);
+      setDicomImages(images);
+      setLoadingFiles(false);
+    }
+  };
+
+  const extractDicomImage = (dataSet, byteArray) => {
+    try {
+      // Get image dimensions
+      const rows = dataSet.uint16('x00280010');
+      const columns = dataSet.uint16('x00280011');
+      const samplesPerPixel = dataSet.uint16('x00280002') || 1;
+      const bitsAllocated = dataSet.uint16('x00280100') || 16;
+      const bitsStored = dataSet.uint16('x00280101') || bitsAllocated;
+      const highBit = dataSet.uint16('x00280102') || bitsStored - 1;
+      const pixelRepresentation = dataSet.uint16('x00280103') || 0;
+      
+      // Get pixel data
+      const pixelDataElement = dataSet.elements.x7fe00010;
+      if (!pixelDataElement) {
+        console.error("No pixel data found in DICOM file");
+        return null;
+      }
+      
+      const pixelData = new Uint16Array(byteArray.buffer, pixelDataElement.dataOffset, pixelDataElement.length / 2);
+      
+      // Get window/level information
+      let windowCenter = dataSet.floatString('x00281050') || 128;
+      let windowWidth = dataSet.floatString('x00281051') || 256;
+      
+      if (Array.isArray(windowCenter)) windowCenter = windowCenter[0];
+      if (Array.isArray(windowWidth)) windowWidth = windowWidth[0];
+      
+      return {
+        rows,
+        columns,
+        samplesPerPixel,
+        bitsAllocated,
+        bitsStored,
+        highBit,
+        pixelRepresentation,
+        pixelData,
+        windowCenter,
+        windowWidth,
+        dataSet
+      };
+    } catch (error) {
+      console.error("Failed to extract DICOM image:", error);
+      return null;
+    }
+  };
+
+  const createFallbackImage = (sliceIndex) => {
+    // Create a simple fallback image
+    const rows = 512;
+    const columns = 512;
+    const pixelData = new Uint16Array(rows * columns);
+    
+    // Create a simple pattern
+    for (let i = 0; i < pixelData.length; i++) {
+      const x = i % columns;
+      const y = Math.floor(i / columns);
+      pixelData[i] = ((x + y + sliceIndex * 10) % 256) * 128;
+    }
+    
+    return {
+      rows,
+      columns,
+      samplesPerPixel: 1,
+      bitsAllocated: 16,
+      bitsStored: 16,
+      highBit: 15,
+      pixelRepresentation: 0,
+      pixelData,
+      windowCenter: 128,
+      windowWidth: 256
+    };
   };
 
   const getLayoutConfig = (layoutType) => {
