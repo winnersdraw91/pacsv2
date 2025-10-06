@@ -893,6 +893,81 @@ async def get_dicom_file(file_id: str, current_user: User = Depends(get_current_
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
 
+@api_router.get("/files/{file_id}/metadata")
+async def get_dicom_metadata(file_id: str, current_user: User = Depends(get_current_user)):
+    """Extract and return DICOM metadata from a file"""
+    try:
+        from bson import ObjectId
+        grid_out = await fs.open_download_stream(ObjectId(file_id))
+        contents = await grid_out.read()
+        
+        metadata = extract_dicom_metadata(contents)
+        if not metadata:
+            raise HTTPException(status_code=400, detail="Failed to extract DICOM metadata")
+        
+        return {"file_id": file_id, "metadata": metadata}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"File not found or metadata extraction failed: {str(e)}")
+
+@api_router.post("/files/extract-metadata")
+async def extract_metadata_from_upload(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Extract DICOM metadata from an uploaded file without saving it"""
+    try:
+        contents = await file.read()
+        metadata = extract_dicom_metadata(contents)
+        
+        if not metadata:
+            raise HTTPException(status_code=400, detail="Failed to extract DICOM metadata from uploaded file")
+        
+        return {
+            "filename": file.filename,
+            "metadata": metadata,
+            "extracted_at": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Metadata extraction failed: {str(e)}")
+
+@api_router.put("/files/{file_id}/update-metadata")
+async def update_dicom_metadata(
+    file_id: str,
+    updates: Dict[str, Any] = Body(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Update DICOM file metadata and save the modified file"""
+    if current_user.role not in [UserRole.TECHNICIAN, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Only technicians and admins can update DICOM metadata")
+    
+    try:
+        from bson import ObjectId
+        
+        # Get original file
+        grid_out = await fs.open_download_stream(ObjectId(file_id))
+        original_contents = await grid_out.read()
+        original_filename = grid_out.filename
+        
+        # Modify metadata
+        modified_contents = modify_dicom_metadata(original_contents, updates)
+        
+        # Save modified file (replace original)
+        await fs.delete(ObjectId(file_id))
+        new_file_id = await fs.upload_from_stream(
+            original_filename,
+            io.BytesIO(modified_contents),
+            metadata={"modified_at": datetime.now(timezone.utc).isoformat(), "modified_by": current_user.id}
+        )
+        
+        return {
+            "message": "DICOM metadata updated successfully",
+            "old_file_id": file_id,
+            "new_file_id": str(new_file_id),
+            "updates_applied": updates
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update DICOM metadata: {str(e)}")
+
 # ==================== DASHBOARD STATS ====================
 
 @api_router.get("/dashboard/stats")
