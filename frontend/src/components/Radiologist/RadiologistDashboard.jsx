@@ -29,6 +29,20 @@ export default function RadiologistDashboard() {
     recommendations: ""
   });
   const [allStudies, setAllStudies] = useState([]);
+  
+  // Upload with report functionality
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [uploadFiles, setUploadFiles] = useState([]);
+  const [uploadData, setUploadData] = useState({
+    patient_name: "",
+    patient_age: "",
+    patient_gender: "",
+    modality: "",
+    study_description: "",
+    final_report_text: ""
+  });
+  const [extractedMetadata, setExtractedMetadata] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchData();
