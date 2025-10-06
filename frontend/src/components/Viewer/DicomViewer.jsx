@@ -692,9 +692,9 @@ export default function DicomViewer() {
   };
 
   const drawMINIPView = () => {
-    if (!canvasMIPRef.current || !study) return;
+    if (!canvasMINIPRef.current || !study) return;
     
-    const canvas = canvasMIPRef.current;
+    const canvas = canvasMINIPRef.current;
     const ctx = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
