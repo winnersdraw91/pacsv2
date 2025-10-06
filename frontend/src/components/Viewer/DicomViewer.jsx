@@ -1389,7 +1389,11 @@ export default function DicomViewer() {
   };
 
   const handleWheel = (e, viewportIndex = 0) => {
-    e.preventDefault();
+    try {
+      e.preventDefault();
+    } catch (error) {
+      // Ignore preventDefault error in passive event listeners
+    }
     const direction = e.deltaY > 0 ? 1 : -1;
     
     if (activeTool === "zoom") {
