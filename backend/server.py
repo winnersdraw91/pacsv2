@@ -21,6 +21,8 @@ import pydicom
 from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 from pathlib import Path
+import zipfile
+import json
 
 # Load environment
 ROOT_DIR = Path(__file__).parent
