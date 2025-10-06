@@ -688,6 +688,84 @@ export default function DicomViewer() {
     }
   };
 
+  const renderDicomImage = (ctx, width, height, slice = 0) => {
+    // Check if we have actual DICOM data for this slice
+    if (dicomImages[slice]) {
+      renderActualDicomSlice(ctx, width, height, dicomImages[slice], slice);
+    } else {
+      // Fallback to mock image while loading or if no DICOM available
+      generateMockDicomImage(ctx, width, height, slice);
+    }
+  };
+
+  const renderActualDicomSlice = (ctx, width, height, dicomImage, slice) => {
+    try {
+      const { rows, columns, pixelData, windowCenter, windowWidth } = dicomImage;
+      
+      // Create image data
+      const imageData = ctx.createImageData(width, height);
+      const data = imageData.data;
+      
+      // Calculate scaling factors
+      const scaleX = columns / width;
+      const scaleY = rows / height;
+      
+      // Apply current window/level settings
+      const currentWindowCenter = imageState.windowLevel;
+      const currentWindowWidth = imageState.windowWidth;
+      
+      const windowMin = currentWindowCenter - currentWindowWidth / 2;
+      const windowMax = currentWindowCenter + currentWindowWidth / 2;
+      
+      // Render pixels
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const sourceX = Math.floor(x * scaleX);
+          const sourceY = Math.floor(y * scaleY);
+          const sourceIndex = sourceY * columns + sourceX;
+          
+          if (sourceIndex < pixelData.length) {
+            let pixelValue = pixelData[sourceIndex];
+            
+            // Apply window/level
+            if (pixelValue < windowMin) {
+              pixelValue = 0;
+            } else if (pixelValue > windowMax) {
+              pixelValue = 255;
+            } else {
+              pixelValue = ((pixelValue - windowMin) / currentWindowWidth) * 255;
+            }
+            
+            // Apply brightness and contrast
+            pixelValue = pixelValue * imageState.contrast + imageState.brightness;
+            pixelValue = Math.max(0, Math.min(255, pixelValue));
+            
+            const targetIndex = (y * width + x) * 4;
+            data[targetIndex] = pixelValue;     // Red
+            data[targetIndex + 1] = pixelValue; // Green  
+            data[targetIndex + 2] = pixelValue; // Blue
+            data[targetIndex + 3] = 255;       // Alpha
+          }
+        }
+      }
+      
+      // Draw the image
+      ctx.putImageData(imageData, 0, 0);
+      
+      // Add slice information
+      ctx.fillStyle = "#00ff00";
+      ctx.font = "12px monospace";
+      ctx.fillText(`Slice: ${slice + 1}`, 10, 20);
+      ctx.fillText(`WL: ${Math.round(currentWindowCenter)}/${Math.round(currentWindowWidth)}`, 10, 40);
+      ctx.fillText(`Real DICOM Data`, 10, 60);
+      
+    } catch (error) {
+      console.error("Failed to render DICOM slice:", error);
+      // Fallback to mock image
+      generateMockDicomImage(ctx, width, height, slice);
+    }
+  };
+
   const generateMockDicomImage = (ctx, width, height, slice = 0) => {
     const imageWidth = 400;
     const imageHeight = 400;
