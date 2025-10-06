@@ -624,6 +624,164 @@ export default function RadiologistDashboard() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Upload Study Dialog */}
+        <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Upload Study with Report</DialogTitle>
+            </DialogHeader>
+            
+            <form onSubmit={(e) => { e.preventDefault(); handleUploadWithReport(); }} className="space-y-6">
+              {/* File Upload */}
+              <div>
+                <Label htmlFor="dicom-files">DICOM Files *</Label>
+                <Input
+                  id="dicom-files"
+                  type="file"
+                  accept=".dcm"
+                  multiple
+                  onChange={handleFileUpload}
+                  required
+                  className="mt-2"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Select multiple DICOM files (.dcm). Metadata will be auto-extracted from the first file.
+                </p>
+                {uploadFiles.length > 0 && (
+                  <p className="text-sm text-green-600 mt-1">
+                    {uploadFiles.length} file(s) selected
+                  </p>
+                )}
+              </div>
+
+              {/* Metadata Preview */}
+              {extractedMetadata && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-medium text-blue-900 mb-2">Extracted DICOM Metadata:</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    {extractedMetadata.patient_name && (
+                      <div><strong>Patient:</strong> {extractedMetadata.patient_name}</div>
+                    )}
+                    {extractedMetadata.modality && (
+                      <div><strong>Modality:</strong> {extractedMetadata.modality}</div>
+                    )}
+                    {extractedMetadata.study_description && (
+                      <div><strong>Study:</strong> {extractedMetadata.study_description}</div>
+                    )}
+                    {extractedMetadata.institution_name && (
+                      <div><strong>Institution:</strong> {extractedMetadata.institution_name}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Patient Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="patient_name">Patient Name *</Label>
+                  <Input
+                    id="patient_name"
+                    value={uploadData.patient_name}
+                    onChange={(e) => setUploadData({...uploadData, patient_name: e.target.value})}
+                    required
+                    placeholder="Enter patient name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="patient_age">Patient Age *</Label>
+                  <Input
+                    id="patient_age"
+                    type="number"
+                    value={uploadData.patient_age}
+                    onChange={(e) => setUploadData({...uploadData, patient_age: e.target.value})}
+                    required
+                    placeholder="Enter age"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="patient_gender">Gender *</Label>
+                  <select
+                    id="patient_gender"
+                    value={uploadData.patient_gender}
+                    onChange={(e) => setUploadData({...uploadData, patient_gender: e.target.value})}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                    <option value="O">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="modality">Modality *</Label>
+                  <select
+                    id="modality"
+                    value={uploadData.modality}
+                    onChange={(e) => setUploadData({...uploadData, modality: e.target.value})}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="">Select modality</option>
+                    <option value="CT">CT Scan</option>
+                    <option value="MRI">MRI</option>
+                    <option value="X-RAY">X-Ray</option>
+                    <option value="US">Ultrasound</option>
+                    <option value="MG">Mammography</option>
+                    <option value="NM">Nuclear Medicine</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="study_description">Study Description</Label>
+                <Input
+                  id="study_description"
+                  value={uploadData.study_description}
+                  onChange={(e) => setUploadData({...uploadData, study_description: e.target.value})}
+                  placeholder="Enter study description"
+                />
+              </div>
+
+              {/* Final Report */}
+              <div>
+                <Label htmlFor="final_report">Final Report *</Label>
+                <Textarea
+                  id="final_report"
+                  value={uploadData.final_report_text}
+                  onChange={(e) => setUploadData({...uploadData, final_report_text: e.target.value})}
+                  required
+                  rows={6}
+                  placeholder="Enter the final radiologist report..."
+                  className="resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowUploadDialog(false)} 
+                  className="flex-1"
+                  disabled={uploading}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                  disabled={uploading}
+                >
+                  {uploading ? "Uploading..." : "Upload Study with Report"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
