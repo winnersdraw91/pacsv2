@@ -324,7 +324,7 @@ export default function TechnicianDashboard() {
                     type="file"
                     multiple
                     accept=".dcm,.dicom,image/*"
-                    onChange={(e) => setFiles(Array.from(e.target.files))}
+                    onChange={(e) => handleFileSelection(Array.from(e.target.files))}
                     required
                   />
                   {files.length > 0 && (
