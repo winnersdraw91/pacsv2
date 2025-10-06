@@ -206,8 +206,9 @@ export default function DicomViewer() {
         }
       }
     } catch (error) {
-      console.error("Failed to load DICOM files:", error);
+      console.error("❌ DICOM LOADING ERROR: Failed to load DICOM files:", error);
     } finally {
+      console.log(`🎯 DICOM LOADING COMPLETE: Loaded ${Object.keys(images).length} DICOM images successfully`);
       setDicomFiles(files);
       setDicomImages(images);
       setLoadingFiles(false);
