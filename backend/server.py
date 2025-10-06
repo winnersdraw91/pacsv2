@@ -562,8 +562,8 @@ async def get_studies(
         if radiologist_id:
             query["radiologist_id"] = radiologist_id
     
-    if status:
-        query["status"] = status
+    if study_status:
+        query["status"] = study_status
     if centre_id and current_user.role == UserRole.ADMIN:
         query["centre_id"] = centre_id
     
