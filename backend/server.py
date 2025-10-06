@@ -570,7 +570,35 @@ async def get_studies(
         query["centre_id"] = centre_id
     
     studies = await db.studies.find(query).sort("uploaded_at", -1).to_list(1000)
-    return [DicomStudy(**s) for s in studies]
+    
+    # Transform MongoDB documents to match DicomStudy model
+    result = []
+    for study in studies:
+        # Ensure required fields have default values
+        study_data = {
+            "id": study.get("id", str(study["_id"])),
+            "study_id": study.get("study_id", study.get("id")),
+            "patient_name": study.get("patient_name", ""),
+            "patient_age": study.get("patient_age", 0),
+            "patient_gender": study.get("patient_gender", ""),
+            "modality": study.get("modality", ""),
+            "centre_id": study.get("centre_id"),
+            "technician_id": study.get("technician_id"),
+            "radiologist_id": study.get("radiologist_id"),
+            "status": study.get("status", "pending"),
+            "notes": study.get("notes"),
+            "file_ids": study.get("file_ids", []),
+            "uploaded_at": study.get("uploaded_at"),
+            "ai_report_id": study.get("ai_report_id"),
+            "final_report_id": study.get("final_report_id"),
+            "is_draft": study.get("is_draft", False),
+            "delete_requested": study.get("delete_requested", False),
+            "delete_requested_at": study.get("delete_requested_at"),
+            "delete_requested_by": study.get("delete_requested_by")
+        }
+        result.append(DicomStudy(**study_data))
+    
+    return result
 
 @api_router.get("/studies/{study_id}", response_model=DicomStudy)
 async def get_study(study_id: str, current_user: User = Depends(get_current_user)):
