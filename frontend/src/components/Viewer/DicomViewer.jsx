@@ -194,10 +194,13 @@ export default function DicomViewer() {
           const image = extractDicomImage(dataSet, byteArray);
           if (image) {
             images[i] = image;
-            console.log(`Successfully loaded DICOM file ${i + 1}/${fileIds.length}`);
+            console.log(`✅ DICOM EXTRACTED ${i + 1}: Successfully extracted image data ${image.rows}x${image.columns} pixels, WL: ${image.windowCenter}/${image.windowWidth}`);
+          } else {
+            console.warn(`⚠️ DICOM EXTRACT ${i + 1}: Failed to extract image data, using fallback`);
+            images[i] = createFallbackImage(i);
           }
         } catch (fileError) {
-          console.error(`Failed to load DICOM file ${fileId}:`, fileError);
+          console.error(`❌ DICOM ERROR ${i + 1}: Failed to load DICOM file ${fileId}:`, fileError);
           // Create fallback image
           images[i] = createFallbackImage(i);
         }
