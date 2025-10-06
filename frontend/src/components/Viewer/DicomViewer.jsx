@@ -222,30 +222,75 @@ export default function DicomViewer() {
 
   const extractDicomImage = (dataSet, byteArray) => {
     try {
+      console.log("🔍 DICOM EXTRACT: Starting DICOM data extraction...");
+      
       // Get image dimensions
       const rows = dataSet.uint16('x00280010');
       const columns = dataSet.uint16('x00280011');
+      
+      if (!rows || !columns) {
+        console.error("❌ DICOM EXTRACT: Missing image dimensions", { rows, columns });
+        return null;
+      }
+      
       const samplesPerPixel = dataSet.uint16('x00280002') || 1;
       const bitsAllocated = dataSet.uint16('x00280100') || 16;
       const bitsStored = dataSet.uint16('x00280101') || bitsAllocated;
       const highBit = dataSet.uint16('x00280102') || bitsStored - 1;
       const pixelRepresentation = dataSet.uint16('x00280103') || 0;
       
-      // Get pixel data
+      console.log("📏 DICOM DIMENSIONS:", { rows, columns, bitsAllocated, samplesPerPixel });
+      
+      // Get pixel data with better error handling
       const pixelDataElement = dataSet.elements.x7fe00010;
       if (!pixelDataElement) {
-        console.error("No pixel data found in DICOM file");
+        console.error("❌ DICOM EXTRACT: No pixel data element found in DICOM file");
         return null;
       }
       
-      const pixelData = new Uint16Array(byteArray.buffer, pixelDataElement.dataOffset, pixelDataElement.length / 2);
+      console.log("📊 DICOM PIXEL DATA:", { 
+        dataOffset: pixelDataElement.dataOffset, 
+        length: pixelDataElement.length,
+        byteArrayLength: byteArray.length
+      });
       
-      // Get window/level information
-      let windowCenter = dataSet.floatString('x00281050') || 128;
-      let windowWidth = dataSet.floatString('x00281051') || 256;
+      // Create pixel data array with proper error checking
+      let pixelData;
+      try {
+        if (bitsAllocated === 8) {
+          pixelData = new Uint8Array(byteArray.buffer, pixelDataElement.dataOffset, pixelDataElement.length);
+        } else {
+          pixelData = new Uint16Array(byteArray.buffer, pixelDataElement.dataOffset, pixelDataElement.length / 2);
+        }
+      } catch (bufferError) {
+        console.error("❌ DICOM EXTRACT: Failed to create pixel data array:", bufferError);
+        return null;
+      }
       
-      if (Array.isArray(windowCenter)) windowCenter = windowCenter[0];
-      if (Array.isArray(windowWidth)) windowWidth = windowWidth[0];
+      // Get window/level information with safer parsing
+      let windowCenter = 128;
+      let windowWidth = 256;
+      
+      try {
+        const wcData = dataSet.floatString('x00281050');
+        const wwData = dataSet.floatString('x00281051');
+        
+        if (wcData) {
+          windowCenter = Array.isArray(wcData) ? wcData[0] : wcData;
+        }
+        if (wwData) {
+          windowWidth = Array.isArray(wwData) ? wwData[0] : wwData;
+        }
+      } catch (windowError) {
+        console.warn("⚠️ DICOM EXTRACT: Using default window/level values", windowError);
+      }
+      
+      console.log("🎯 DICOM EXTRACT SUCCESS:", {
+        dimensions: `${rows}x${columns}`,
+        pixelCount: pixelData.length,
+        windowCenter,
+        windowWidth
+      });
       
       return {
         rows,
@@ -261,7 +306,7 @@ export default function DicomViewer() {
         dataSet
       };
     } catch (error) {
-      console.error("Failed to extract DICOM image:", error);
+      console.error("❌ DICOM EXTRACT: Failed to extract DICOM image:", error);
       return null;
     }
   };
