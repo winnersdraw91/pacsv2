@@ -369,12 +369,11 @@ metadata:
 
 test_plan:
   current_focus:
-    - "DICOM Network Request Timeout Fix"
-    - "DICOM File Loading Reliability"
-  stuck_tasks: 
-    - "DICOM Viewer Real File Integration"
+    - "DICOM Canvas Rendering Investigation"
+    - "DICOM Pixel Data Display Fix"
+  stuck_tasks: []
   test_all: false
-  test_priority: "critical_network_timeout_fix"
+  test_priority: "canvas_rendering_fix"
 
   - task: "Advanced Image Comparison"
     implemented: true
