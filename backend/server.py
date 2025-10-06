@@ -1193,6 +1193,69 @@ async def upload_study_with_report(
         logging.error(f"Failed to upload study with report: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to upload study: {str(e)}")
 
+# ==================== DATABASE CLEANUP ====================
+
+@api_router.delete("/admin/cleanup-mock-data")
+async def cleanup_mock_data(current_user: User = Depends(get_current_user)):
+    """Remove all mock and test data from the system"""
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only admins can cleanup mock data")
+    
+    try:
+        cleanup_summary = {
+            "studies_removed": 0,
+            "mock_files_removed": 0,
+            "ai_reports_removed": 0,
+            "reports_removed": 0,
+            "billing_rates_removed": 0,
+            "invoices_removed": 0
+        }
+        
+        # Remove studies with mock file_ids (file_XXXXX pattern)
+        mock_studies = await db.studies.find({"file_ids": {"$elemMatch": {"$regex": "^file_"}}}).to_list(None)
+        for study in mock_studies:
+            await db.studies.delete_one({"id": study["id"]})
+            cleanup_summary["studies_removed"] += 1
+            
+            # Remove associated AI reports
+            await db.ai_reports.delete_many({"study_id": study["id"]})
+            cleanup_summary["ai_reports_removed"] += 1
+            
+            # Remove associated reports
+            await db.reports.delete_many({"study_id": study["id"]})
+            cleanup_summary["reports_removed"] += 1
+        
+        # Remove test billing rates
+        test_rates = await db.billing_rates.delete_many({
+            "$or": [
+                {"modality": {"$regex": "TEST"}},
+                {"description": {"$regex": "test|Test|TEST"}}
+            ]
+        })
+        cleanup_summary["billing_rates_removed"] = test_rates.deleted_count
+        
+        # Remove test invoices (those with $0 amounts or test centres)
+        test_invoices = await db.invoices.delete_many({
+            "$or": [
+                {"total_amount": 0},
+                {"centre_name": {"$regex": "test|Test|TEST"}}
+            ]
+        })
+        cleanup_summary["invoices_removed"] = test_invoices.deleted_count
+        
+        # Remove orphaned payment transactions
+        await db.payment_transactions.delete_many({
+            "invoice_id": {"$nin": await db.invoices.distinct("id")}
+        })
+        
+        return {
+            "message": "Mock and test data cleanup completed",
+            "summary": cleanup_summary
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to cleanup mock data: {str(e)}")
+
 # ==================== DASHBOARD STATS ====================
 
 @api_router.get("/dashboard/stats")
