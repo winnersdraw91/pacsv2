@@ -366,12 +366,12 @@ metadata:
 
 test_plan:
   current_focus:
-    - "DICOM Viewer JavaScript Runtime Error Fix"
-    - "Real DICOM Image Display Verification"
+    - "DICOM Network Request Timeout Fix"
+    - "DICOM File Loading Reliability"
   stuck_tasks: 
     - "DICOM Viewer Real File Integration"
   test_all: false
-  test_priority: "critical_dicom_viewer_fix"
+  test_priority: "critical_network_timeout_fix"
 
   - task: "Advanced Image Comparison"
     implemented: true
