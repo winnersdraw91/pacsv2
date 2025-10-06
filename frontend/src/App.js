@@ -144,8 +144,16 @@ function App() {
           <Route
             path="/viewer/:studyId"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={["admin", "radiologist", "centre"]}>
                 <DicomViewer />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/simple-viewer/:studyId"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "radiologist", "centre"]}>
+                <SimpleDicomViewer />
               </ProtectedRoute>
             }
           />
