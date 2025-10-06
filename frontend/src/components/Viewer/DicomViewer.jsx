@@ -698,8 +698,10 @@ export default function DicomViewer() {
   const renderDicomImage = (ctx, width, height, slice = 0) => {
     // Check if we have actual DICOM data for this slice
     if (dicomImages[slice]) {
+      console.log(`🖼️ RENDERING: Using real DICOM data for slice ${slice}`);
       renderActualDicomSlice(ctx, width, height, dicomImages[slice], slice);
     } else {
+      console.log(`🔄 RENDERING: Using mock data for slice ${slice} (no DICOM data available). Available slices: ${Object.keys(dicomImages)}`);
       // Fallback to mock image while loading or if no DICOM available
       generateMockDicomImage(ctx, width, height, slice);
     }
