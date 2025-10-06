@@ -907,16 +907,6 @@ async def get_dicom_file_metadata(file_id: str, current_user: User = Depends(get
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"File not found or metadata extraction failed: {str(e)}")
 
-@api_router.post("/files/extract-metadata")
-async def extract_metadata_from_upload(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
-    """Extract metadata from uploaded DICOM file without storing it"""
-    try:
-        contents = await file.read()
-        metadata = extract_dicom_metadata(contents)
-        return metadata
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to extract metadata: {str(e)}")
-
 @api_router.put("/files/{file_id}/update-metadata")
 async def update_dicom_file_metadata(
     file_id: str,
