@@ -241,33 +241,108 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid authentication credentials")
 
-def generate_mock_ai_report(modality: str, patient_age: int, patient_gender: str) -> Dict[str, Any]:
-    """Generate mock AI report based on modality"""
-    reports = {
-        "CT": {
-            "findings": "Brain CT scan shows normal gray-white matter differentiation. No acute intracranial hemorrhage, mass effect, or midline shift. Ventricular system is normal in size and configuration. No extra-axial fluid collections.",
-            "diagnosis": "Normal Brain CT - No acute intracranial abnormality detected"
-        },
-        "MRI": {
-            "findings": "MRI Brain: Normal brain parenchyma signal intensity on all sequences. No evidence of mass lesion, hemorrhage, or acute infarction. Ventricular system and sulci are age-appropriate.",
-            "diagnosis": "Normal MRI Brain study"
-        },
-        "X-ray": {
-            "findings": "Chest X-ray: Heart size is normal. Lungs are clear bilaterally. No pleural effusion or pneumothorax. Bony thorax is intact.",
-            "diagnosis": "Normal Chest X-ray - No acute cardiopulmonary abnormality"
-        },
-        "Ultrasound": {
-            "findings": "Abdomen ultrasound: Liver, gallbladder, pancreas, spleen, and kidneys appear normal in size and echogenicity. No focal lesions or free fluid detected.",
-            "diagnosis": "Normal abdominal ultrasound"
+def extract_dicom_metadata(file_data: bytes) -> Dict[str, Any]:
+    """Extract patient and study metadata from DICOM file"""
+    try:
+        # Parse DICOM data
+        ds = pydicom.dcmread(io.BytesIO(file_data))
+        
+        metadata = {
+            # Patient Information
+            "patient_name": str(getattr(ds, 'PatientName', '')),
+            "patient_id": str(getattr(ds, 'PatientID', '')),
+            "patient_birth_date": str(getattr(ds, 'PatientBirthDate', '')),
+            "patient_gender": str(getattr(ds, 'PatientSex', '')),
+            "patient_age": str(getattr(ds, 'PatientAge', '')),
+            
+            # Study Information  
+            "study_instance_uid": str(getattr(ds, 'StudyInstanceUID', '')),
+            "study_date": str(getattr(ds, 'StudyDate', '')),
+            "study_time": str(getattr(ds, 'StudyTime', '')),
+            "study_description": str(getattr(ds, 'StudyDescription', '')),
+            "accession_number": str(getattr(ds, 'AccessionNumber', '')),
+            
+            # Series Information
+            "series_instance_uid": str(getattr(ds, 'SeriesInstanceUID', '')),
+            "series_number": str(getattr(ds, 'SeriesNumber', '')),
+            "series_description": str(getattr(ds, 'SeriesDescription', '')),
+            "modality": str(getattr(ds, 'Modality', '')),
+            
+            # Image Information
+            "sop_instance_uid": str(getattr(ds, 'SOPInstanceUID', '')),
+            "instance_number": str(getattr(ds, 'InstanceNumber', '')),
+            "rows": int(getattr(ds, 'Rows', 0)) if hasattr(ds, 'Rows') else 0,
+            "columns": int(getattr(ds, 'Columns', 0)) if hasattr(ds, 'Columns') else 0,
+            "pixel_spacing": getattr(ds, 'PixelSpacing', []) if hasattr(ds, 'PixelSpacing') else [],
+            "slice_thickness": str(getattr(ds, 'SliceThickness', '')),
+            
+            # Technical Parameters
+            "window_center": getattr(ds, 'WindowCenter', []) if hasattr(ds, 'WindowCenter') else [],
+            "window_width": getattr(ds, 'WindowWidth', []) if hasattr(ds, 'WindowWidth') else [],
+            "rescale_intercept": str(getattr(ds, 'RescaleIntercept', '')),
+            "rescale_slope": str(getattr(ds, 'RescaleSlope', '')),
+            
+            # Equipment Information
+            "manufacturer": str(getattr(ds, 'Manufacturer', '')),
+            "manufacturer_model": str(getattr(ds, 'ManufacturerModelName', '')),
+            "station_name": str(getattr(ds, 'StationName', '')),
+            
+            # Institution Information
+            "institution_name": str(getattr(ds, 'InstitutionName', '')),
+            "institution_address": str(getattr(ds, 'InstitutionAddress', ''))
         }
-    }
-    
-    default_report = {
-        "findings": f"Imaging study of {modality} modality reviewed. Structures within normal limits for age and gender.",
-        "diagnosis": f"Normal {modality} study - No significant abnormality detected"
-    }
-    
-    return reports.get(modality, default_report)
+        
+        # Calculate patient age if birth date is available and age is not
+        if metadata["patient_birth_date"] and not metadata["patient_age"]:
+            try:
+                from datetime import datetime
+                birth_date = datetime.strptime(metadata["patient_birth_date"], "%Y%m%d")
+                study_date = datetime.strptime(metadata["study_date"], "%Y%m%d") if metadata["study_date"] else datetime.now()
+                age = study_date.year - birth_date.year
+                if study_date.month < birth_date.month or (study_date.month == birth_date.month and study_date.day < birth_date.day):
+                    age -= 1
+                metadata["calculated_age"] = age
+            except:
+                metadata["calculated_age"] = None
+        
+        return metadata
+        
+    except Exception as e:
+        logging.error(f"Failed to extract DICOM metadata: {str(e)}")
+        return {}
+
+def modify_dicom_metadata(file_data: bytes, patient_updates: Dict[str, Any]) -> bytes:
+    """Modify DICOM file metadata with updated patient information"""
+    try:
+        # Parse DICOM data
+        ds = pydicom.dcmread(io.BytesIO(file_data))
+        
+        # Update patient information if provided
+        if "patient_name" in patient_updates:
+            ds.PatientName = patient_updates["patient_name"]
+        if "patient_id" in patient_updates:
+            ds.PatientID = patient_updates["patient_id"]
+        if "patient_birth_date" in patient_updates:
+            ds.PatientBirthDate = patient_updates["patient_birth_date"]
+        if "patient_gender" in patient_updates:
+            ds.PatientSex = patient_updates["patient_gender"]
+        if "patient_age" in patient_updates:
+            ds.PatientAge = patient_updates["patient_age"]
+            
+        # Update study information if provided
+        if "study_description" in patient_updates:
+            ds.StudyDescription = patient_updates["study_description"]
+        if "accession_number" in patient_updates:
+            ds.AccessionNumber = patient_updates["accession_number"]
+            
+        # Save modified DICOM to bytes
+        output = io.BytesIO()
+        ds.save_as(output)
+        return output.getvalue()
+        
+    except Exception as e:
+        logging.error(f"Failed to modify DICOM metadata: {str(e)}")
+        return file_data  # Return original if modification fails
 
 # ==================== AUTH ROUTES ====================
 
