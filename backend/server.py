@@ -246,8 +246,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 def extract_dicom_metadata(file_data: bytes) -> Dict[str, Any]:
     """Extract patient and study metadata from DICOM file"""
     try:
-        # Parse DICOM data
-        ds = pydicom.dcmread(io.BytesIO(file_data))
+        # Parse DICOM data with force=True to handle files without proper DICM header
+        ds = pydicom.dcmread(io.BytesIO(file_data), force=True)
         
         metadata = {
             # Patient Information
