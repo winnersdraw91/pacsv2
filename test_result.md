@@ -248,15 +248,18 @@ backend:
 
   - task: "Enhanced Upload Workflow with Auto-Fill"
     implemented: true
-    working: true
+    working: false
     file: "server.py"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
         - working: true
           agent: "testing"
           comment: "ENHANCED UPLOAD WORKFLOW TESTING COMPLETE: ✅ Technician upload endpoint properly restricted (403 for admin users - correct behavior) ✅ Auto-fill functionality from DICOM headers operational during upload process ✅ Automatic metadata extraction working during study creation ✅ Enhanced upload workflow with real-time DICOM parsing functional ✅ Role-based access control properly implemented ✅ Study creation with real metadata vs manual entry working. Enhanced upload workflow is production-ready with proper access controls."
+        - working: false
+          agent: "testing"
+          comment: "FRONTEND TESTING FAILED: ✅ Technician upload dialog UI implemented with DICOM file selection and auto-fill form fields ✅ Enhanced upload form ready for metadata extraction from DICOM headers ❌ CRITICAL: technician@pacs.com login returns 401 Unauthorized - cannot test technician-specific features ❌ Backend validation errors prevent testing complete upload workflow ❌ Cannot verify DICOM metadata auto-fill functionality due to authentication issues. Frontend UI components are production-ready but backend authentication needs fixes."
 
 frontend:
   - task: "DICOM Viewer Real File Integration"
