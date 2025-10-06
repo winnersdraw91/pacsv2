@@ -103,13 +103,13 @@ class DiagnosticCentreCreate(BaseModel):
 
 class DicomStudy(BaseModel):
     id: str
-    study_id: str  # 8-digit alphanumeric
+    study_id: Optional[str] = None  # 8-digit alphanumeric
     patient_name: str
     patient_age: int
     patient_gender: str
     modality: str
-    centre_id: str
-    technician_id: str
+    centre_id: Optional[str] = None
+    technician_id: Optional[str] = None
     radiologist_id: Optional[str] = None
     status: str  # pending, assigned, completed, draft, delete_requested
     notes: Optional[str] = None
