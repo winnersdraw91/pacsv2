@@ -1335,8 +1335,8 @@ async def get_invoices(
     elif centre_id and current_user.role == UserRole.ADMIN:
         query["centre_id"] = centre_id
     
-    if status:
-        query["status"] = status
+    if invoice_status:
+        query["status"] = invoice_status
     
     invoices = await db.invoices.find(query).sort("generated_at", -1).to_list(1000)
     return [Invoice(**inv) for inv in invoices]
