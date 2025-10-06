@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import dicomParser from 'dicom-parser';
 
 export default function SimpleDicomViewer() {
   const { studyId } = useParams();
@@ -8,6 +9,7 @@ export default function SimpleDicomViewer() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [dicomInfo, setDicomInfo] = useState(null);
 
   useEffect(() => {
     loadAndDisplayDicom();
