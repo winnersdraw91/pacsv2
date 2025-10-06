@@ -9,6 +9,7 @@ import TechnicianDashboard from "./components/Technician/TechnicianDashboard";
 import RadiologistDashboard from "./components/Radiologist/RadiologistDashboard";
 import DicomViewer from "./components/Viewer/DicomViewer";
 import SimpleDicomViewer from "./components/Viewer/SimpleDicomViewer";
+import TestViewer from "./components/Viewer/TestViewer";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
