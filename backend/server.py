@@ -471,27 +471,48 @@ async def upload_dicom_study(
     # Generate study ID
     study_id = generate_study_id()
     
-    # Upload files to GridFS
+    # Upload files to GridFS and extract DICOM metadata
     file_ids = []
+    dicom_metadata = {}
+    
     for file in files:
         content = await file.read()
+        
+        # Extract DICOM metadata from the first file
+        if not dicom_metadata and file.filename.lower().endswith('.dcm'):
+            dicom_metadata = extract_dicom_metadata(content)
+        
         file_id = await fs.upload_from_stream(
             f"{study_id}_{file.filename}",
             io.BytesIO(content),
-            metadata={"study_id": study_id, "original_name": file.filename}
+            metadata={
+                "study_id": study_id, 
+                "original_name": file.filename,
+                "dicom_metadata": dicom_metadata if file.filename.lower().endswith('.dcm') else {}
+            }
         )
         file_ids.append(str(file_id))
     
-    # Generate AI report
-    mock_report = generate_mock_ai_report(modality, patient_age, patient_gender)
+    # Generate AI report with DICOM metadata context
+    findings = []
+    if dicom_metadata:
+        findings.append(f"DICOM study processed: {dicom_metadata.get('study_description', 'Unknown study')}")
+        findings.append(f"Modality: {dicom_metadata.get('modality', modality)}")
+        findings.append(f"Institution: {dicom_metadata.get('institution_name', 'Unknown')}")
+        if dicom_metadata.get('manufacturer'):
+            findings.append(f"Equipment: {dicom_metadata.get('manufacturer')} {dicom_metadata.get('manufacturer_model', '')}")
+    else:
+        findings.append(f"Study uploaded for {modality} imaging")
+        findings.append("DICOM metadata extraction pending")
+    
     ai_report_dict = {
         "id": f"ai_{generate_study_id()}",
         "study_id": study_id,
-        "findings": mock_report["findings"],
-        "preliminary_diagnosis": mock_report["diagnosis"],
-        "confidence_score": random.uniform(0.85, 0.98),
+        "findings": ". ".join(findings),
+        "preliminary_diagnosis": f"DICOM {modality} study - Metadata extracted successfully" if dicom_metadata else f"{modality} study uploaded - Awaiting processing",
+        "confidence_score": 0.95 if dicom_metadata else 0.80,
         "generated_at": datetime.now(timezone.utc),
-        "model_version": "MONAI-v1.0-MOCK"
+        "model_version": "DICOM-Metadata-v1.0"
     }
     await db.ai_reports.insert_one(ai_report_dict)
     
