@@ -221,15 +221,18 @@ backend:
 
   - task: "Radiologist Download/Upload Features"
     implemented: true
-    working: true
+    working: false
     file: "server.py"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
         - working: true
           agent: "testing"
           comment: "RADIOLOGIST WORKFLOW TESTING COMPLETE: ✅ POST /api/studies/upload-with-report endpoint fully operational - successfully created study VHL1ZDY6 with radiologist report ✅ DICOM metadata auto-extraction during upload working (extracted metadata from uploaded files) ✅ Final report creation successful with proper content storage ✅ Role-based access control properly implemented (radiologist-only access) ✅ File packaging functionality operational. Minor issue: Study download endpoint has 404 error for newly created studies, but core upload functionality is production-ready."
+        - working: false
+          agent: "testing"
+          comment: "FRONTEND TESTING FAILED: ✅ Upload Study dialog UI implemented with DICOM metadata auto-fill fields and form validation ✅ Download buttons present in radiologist dashboard ❌ CRITICAL: radiologist@pacs.com login returns 401 Unauthorized - cannot test radiologist-specific features ❌ Backend validation errors in studies endpoint prevent study list loading (DicomStudy model missing required fields) ❌ Cannot verify complete radiologist workflow due to authentication and data model issues. Frontend UI components are ready but backend needs fixes for full functionality."
 
   - task: "Database Cleanup and Production Readiness"
     implemented: true
