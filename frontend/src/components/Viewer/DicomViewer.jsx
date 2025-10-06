@@ -1271,12 +1271,19 @@ export default function DicomViewer() {
     setAnnotations([]);
   };
 
-  if (loading) {
+  if (loading || loadingFiles) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <div className="text-center">
           <div className="spinner mx-auto mb-4"></div>
-          <p className="text-white">Loading advanced DICOM viewer...</p>
+          <p className="text-white">
+            {loading ? "Loading study..." : "Loading DICOM files..."}
+          </p>
+          {loadingFiles && Object.keys(dicomImages).length > 0 && (
+            <p className="text-slate-400 mt-2">
+              Loaded {Object.keys(dicomImages).length} files
+            </p>
+          )}
         </div>
       </div>
     );
