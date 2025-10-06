@@ -246,9 +246,8 @@ export default function DicomViewer() {
             successfullyLoaded++;
             console.log(`✅ DICOM EXTRACTED ${i + 1}: Successfully extracted image data ${image.rows}x${image.columns} pixels, WL: ${image.windowCenter}/${image.windowWidth}`);
             
-            // Progressive display: Update state with each successful load
-            setDicomImages(prev => ({...prev, [i]: image}));
-            setDicomFiles(prev => ({...prev, [i]: dataSet}));
+            // Don't update state progressively to avoid infinite loops
+            // Images will be set all at once in the finally block
             
           } else {
             console.warn(`⚠️ DICOM EXTRACT ${i + 1}: Failed to extract image data, using fallback`);
