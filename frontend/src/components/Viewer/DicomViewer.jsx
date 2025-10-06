@@ -774,13 +774,23 @@ export default function DicomViewer() {
   };
 
   const renderDicomImage = (ctx, width, height, slice = 0) => {
+    // First, draw a test pattern to verify canvas is working
+    ctx.fillStyle = "#ff0000";
+    ctx.fillRect(0, 0, 50, 50); // Red square in top-left to test canvas
+    
     // Check if we have actual DICOM data for this slice
     if (dicomImages[slice]) {
       console.log(`🖼️ RENDERING: Using real DICOM data for slice ${slice}`);
       renderActualDicomSlice(ctx, width, height, dicomImages[slice], slice);
     } else {
       console.log(`🔄 RENDERING: Using mock data for slice ${slice} (no DICOM data available). Available slices: ${Object.keys(dicomImages)}`);
-      // Fallback to mock image while loading or if no DICOM available
+      // Test pattern to verify canvas rendering works
+      ctx.fillStyle = "#333333";
+      ctx.fillRect(100, 100, 200, 200);
+      ctx.fillStyle = "#ffffff"; 
+      ctx.font = "16px Arial";
+      ctx.fillText(`Loading DICOM slice ${slice}...`, 120, 220);
+      // Also call mock image for fallback
       generateMockDicomImage(ctx, width, height, slice);
     }
   };
