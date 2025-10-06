@@ -828,6 +828,36 @@ export default function DicomViewer() {
     // Check if we have actual DICOM data for this slice
     if (dicomImages[slice]) {
       console.log(`🖼️ RENDERING: Using real DICOM data for slice ${slice}`);
+      
+      // Try simple direct rendering first to test if DICOM data is valid
+      const dicomImage = dicomImages[slice];
+      if (dicomImage && dicomImage.pixelData) {
+        console.log(`🔍 TESTING SIMPLE DICOM RENDER: ${dicomImage.rows}x${dicomImage.columns}, ${dicomImage.pixelData.length} pixels`);
+        
+        // Draw a simple test with raw DICOM data (center 100x100 area)
+        const testSize = Math.min(100, dicomImage.rows, dicomImage.columns);
+        const startRow = Math.floor((dicomImage.rows - testSize) / 2);
+        const startCol = Math.floor((dicomImage.columns - testSize) / 2);
+        
+        for (let y = 0; y < testSize; y++) {
+          for (let x = 0; x < testSize; x++) {
+            const sourceIndex = (startRow + y) * dicomImage.columns + (startCol + x);
+            if (sourceIndex < dicomImage.pixelData.length) {
+              const pixelValue = dicomImage.pixelData[sourceIndex];
+              const normalizedValue = Math.floor((pixelValue / 4096) * 255); // Simple normalization
+              
+              ctx.fillStyle = `rgb(${normalizedValue}, ${normalizedValue}, ${normalizedValue})`;
+              ctx.fillRect(200 + x, 100 + y, 1, 1); // Draw in a different area
+            }
+          }
+        }
+        
+        ctx.fillStyle = "#00ff00";
+        ctx.font = "12px monospace";
+        ctx.fillText("Direct DICOM Test", 200, 90);
+      }
+      
+      // Also try the full rendering
       renderActualDicomSlice(ctx, width, height, dicomImages[slice], slice);
     } else {
       console.log(`🔄 RENDERING: Using mock data for slice ${slice} (no DICOM data available). Available slices: ${Object.keys(dicomImages)}`);
