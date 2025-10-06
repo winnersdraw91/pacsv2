@@ -158,6 +158,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/test-viewer/:studyId"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "radiologist", "centre"]}>
+                <TestViewer />
+              </ProtectedRoute>
+            }
+          />
           
           <Route path="/" element={<RoleBasedRedirect />} />
         </Routes>
