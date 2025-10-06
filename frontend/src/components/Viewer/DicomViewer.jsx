@@ -181,13 +181,36 @@ export default function DicomViewer() {
         try {
           console.log(`📁 DICOM FILE ${i+1}/${Math.min(fileIds.length, 10)}: Loading file ID: ${fileId}`);
           
-          // Fetch DICOM file as ArrayBuffer
-          const response = await axios.get(`/files/${fileId}`, {
-            responseType: 'arraybuffer',
-            timeout: 10000
-          });
+          // Fetch DICOM file with improved timeout and retry logic
+          let response;
+          let retryCount = 0;
+          const maxRetries = 3;
           
-          console.log(`✅ DICOM FILE ${i+1}: Successfully downloaded ${response.data.byteLength} bytes`);
+          while (retryCount <= maxRetries) {
+            try {
+              response = await axios.get(`/files/${fileId}`, {
+                responseType: 'arraybuffer',
+                timeout: 30000, // Increased from 10s to 30s
+                headers: {
+                  'Cache-Control': 'no-cache'
+                }
+              });
+              
+              console.log(`✅ DICOM FILE ${i+1}: Successfully downloaded ${response.data.byteLength} bytes on attempt ${retryCount + 1}`);
+              break; // Success, exit retry loop
+              
+            } catch (requestError) {
+              retryCount++;
+              console.warn(`⚠️ DICOM FILE ${i+1}: Attempt ${retryCount} failed:`, requestError.message);
+              
+              if (retryCount > maxRetries) {
+                throw requestError; // Re-throw if all retries failed
+              }
+              
+              // Wait before retry (exponential backoff)
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+            }
+          }
           
           const arrayBuffer = response.data;
           const byteArray = new Uint8Array(arrayBuffer);
