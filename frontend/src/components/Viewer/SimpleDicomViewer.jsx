@@ -230,6 +230,13 @@ export default function SimpleDicomViewer() {
         <div className="text-sm text-gray-400">
           Status: {imageLoaded ? '✅ Image loaded' : '❌ No image'}
         </div>
+        {dicomInfo && (
+          <div className="text-sm text-gray-400 mt-2">
+            <div>Dimensions: {dicomInfo.rows} × {dicomInfo.columns}</div>
+            <div>Window/Level: {dicomInfo.windowCenter} / {dicomInfo.windowWidth}</div>
+            <div>Pixels: {dicomInfo.pixelCount}</div>
+          </div>
+        )}
       </div>
       
       <div className="border border-gray-600 inline-block">
