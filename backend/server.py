@@ -275,12 +275,12 @@ def extract_dicom_metadata(file_data: bytes) -> Dict[str, Any]:
             "instance_number": str(getattr(ds, 'InstanceNumber', '')),
             "rows": int(getattr(ds, 'Rows', 0)) if hasattr(ds, 'Rows') else 0,
             "columns": int(getattr(ds, 'Columns', 0)) if hasattr(ds, 'Columns') else 0,
-            "pixel_spacing": getattr(ds, 'PixelSpacing', []) if hasattr(ds, 'PixelSpacing') else [],
+            "pixel_spacing": list(getattr(ds, 'PixelSpacing', [])) if hasattr(ds, 'PixelSpacing') else [],
             "slice_thickness": str(getattr(ds, 'SliceThickness', '')),
             
             # Technical Parameters
-            "window_center": getattr(ds, 'WindowCenter', []) if hasattr(ds, 'WindowCenter') else [],
-            "window_width": getattr(ds, 'WindowWidth', []) if hasattr(ds, 'WindowWidth') else [],
+            "window_center": list(getattr(ds, 'WindowCenter', [])) if hasattr(ds, 'WindowCenter') else [],
+            "window_width": list(getattr(ds, 'WindowWidth', [])) if hasattr(ds, 'WindowWidth') else [],
             "rescale_intercept": str(getattr(ds, 'RescaleIntercept', '')),
             "rescale_slope": str(getattr(ds, 'RescaleSlope', '')),
             
