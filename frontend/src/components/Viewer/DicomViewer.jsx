@@ -260,10 +260,21 @@ export default function DicomViewer() {
     } catch (error) {
       console.error("❌ DICOM LOADING ERROR: Failed to load DICOM files:", error);
     } finally {
-      console.log(`🎯 DICOM LOADING COMPLETE: Loaded ${Object.keys(images).length} DICOM images successfully`);
-      setDicomFiles(files);
-      setDicomImages(images);
+      console.log(`🎯 DICOM LOADING COMPLETE: Loaded ${successfullyLoaded}/${Math.min(fileIds.length, 10)} DICOM images successfully`);
+      
+      // Final state update with all loaded files
+      setDicomFiles(prev => ({...prev, ...files}));
+      setDicomImages(prev => ({...prev, ...images}));
       setLoadingFiles(false);
+      
+      // Force a redraw to display any successfully loaded images
+      if (successfullyLoaded > 0) {
+        console.log(`🖼️ TRIGGERING REDRAW: ${successfullyLoaded} DICOM images available for display`);
+        setTimeout(() => {
+          // This will trigger useEffect to redraw with available images
+          setCurrentSlice(0);
+        }, 100);
+      }
     }
   };
 
