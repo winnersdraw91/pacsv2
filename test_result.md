@@ -339,10 +339,15 @@ metadata:
 
 test_plan:
   current_focus:
-    - "DICOM Viewer Real File Integration Testing Complete"
-  stuck_tasks: []
-  test_all: true
-  test_priority: "high_first"
+    - "Backend validation errors in DicomStudy model"
+    - "Authentication issues for radiologist and technician users"
+  stuck_tasks: 
+    - "Radiologist Download/Upload Features"
+    - "Enhanced Upload Workflow with Auto-Fill"
+    - "Radiologist Download/Upload Features Frontend"
+    - "Technician Auto-Fill DICOM Metadata Frontend"
+  test_all: false
+  test_priority: "stuck_first"
 
   - task: "Advanced Image Comparison"
     implemented: true
