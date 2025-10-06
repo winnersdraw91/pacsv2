@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DICOM Test - Direct Canvas Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #1a1a1a; color: white; padding: 20px; }
+        canvas { border: 1px solid #ccc; background: black; }
+        .status { margin: 10px 0; }
+        .error { color: #ff6b6b; }
+        .success { color: #51cf66; }
+    </style>
+</head>
+<body>
+    <h1>Direct DICOM Canvas Test</h1>
+    
+    <div class="status" id="status">Testing canvas rendering...</div>
+    
+    <canvas id="testCanvas" width="512" height="512"></canvas>
+    
+    <div id="log" style="margin-top: 20px; font-family: monospace; font-size: 12px;"></div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            console.log(message);
+        }
+
+        function testCanvas() {
+            const canvas = document.getElementById('testCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) {
+                document.getElementById('status').innerHTML = '<span class="error">❌ Failed to get canvas context</span>';
+                return;
+            }
+
+            log('✅ Canvas context obtained');
+
+            // Clear canvas
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, 512, 512);
+            log('✅ Canvas cleared');
+
+            // Test basic rendering
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(10, 10, 50, 50);
+            log('✅ Red test square drawn');
+
+            // Test text rendering
+            ctx.fillStyle = '#00ff00';
+            ctx.font = '16px Arial';
+            ctx.fillText('Canvas Test Working!', 70, 30);
+            log('✅ Test text drawn');
+
+            // Simulate DICOM pixel data rendering
+            const imageData = ctx.createImageData(200, 200);
+            const data = imageData.data;
+
+            // Create a simple gradient pattern
+            for (let y = 0; y < 200; y++) {
+                for (let x = 0; x < 200; x++) {
+                    const index = (y * 200 + x) * 4;
+                    const value = Math.floor((x + y) / 2);
+                    
+                    data[index] = value;     // Red
+                    data[index + 1] = value; // Green  
+                    data[index + 2] = value; // Blue
+                    data[index + 3] = 255;   // Alpha
+                }
+            }
+
+            ctx.putImageData(imageData, 100, 100);
+            log('✅ Simulated DICOM pixel data rendered');
+
+            // Add labels
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '12px Arial';
+            ctx.fillText('Simulated DICOM Data', 100, 320);
+            ctx.fillText('200x200 pixels', 100, 335);
+
+            document.getElementById('status').innerHTML = '<span class="success">✅ All canvas tests passed!</span>';
+            log('🎉 Canvas rendering test completed successfully');
+        }
+
+        // Run test when page loads
+        window.onload = testCanvas;
+    </script>
+</body>
+</html>
