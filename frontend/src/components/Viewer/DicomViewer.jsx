@@ -826,15 +826,22 @@ export default function DicomViewer() {
       const windowMin = currentWindowCenter - currentWindowWidth / 2;
       const windowMax = currentWindowCenter + currentWindowWidth / 2;
       
-      // Render pixels
+      console.log(`📏 RENDER SLICE ${slice}: Scaling ${rows}x${columns} → ${width}x${height}, WL range: ${windowMin} to ${windowMax}`);
+      
+      // Render pixels with improved error handling
+      let pixelsProcessed = 0;
+      let pixelsVisible = 0;
+      
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           const sourceX = Math.floor(x * scaleX);
           const sourceY = Math.floor(y * scaleY);
           const sourceIndex = sourceY * columns + sourceX;
           
-          if (sourceIndex < pixelData.length) {
+          if (sourceIndex >= 0 && sourceIndex < pixelData.length) {
             let pixelValue = pixelData[sourceIndex];
+            const originalValue = pixelValue;
+            pixelsProcessed++;
             
             // Apply window/level
             if (pixelValue < windowMin) {
@@ -847,16 +854,27 @@ export default function DicomViewer() {
             
             // Apply brightness and contrast
             pixelValue = pixelValue * imageState.contrast + imageState.brightness;
-            pixelValue = Math.max(0, Math.min(255, pixelValue));
+            pixelValue = Math.max(0, Math.min(255, Math.floor(pixelValue)));
+            
+            if (pixelValue > 0) pixelsVisible++;
             
             const targetIndex = (y * width + x) * 4;
             data[targetIndex] = pixelValue;     // Red
             data[targetIndex + 1] = pixelValue; // Green  
             data[targetIndex + 2] = pixelValue; // Blue
             data[targetIndex + 3] = 255;       // Alpha
+          } else {
+            // Fill with black for out-of-bounds pixels
+            const targetIndex = (y * width + x) * 4;
+            data[targetIndex] = 0;
+            data[targetIndex + 1] = 0;
+            data[targetIndex + 2] = 0;
+            data[targetIndex + 3] = 255;
           }
         }
       }
+      
+      console.log(`📊 RENDER SLICE ${slice}: Processed ${pixelsProcessed} pixels, ${pixelsVisible} visible (${((pixelsVisible/pixelsProcessed)*100).toFixed(1)}%)`);
       
       // Draw the image
       ctx.putImageData(imageData, 0, 0);
