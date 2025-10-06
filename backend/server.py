@@ -302,7 +302,7 @@ def extract_dicom_metadata(file_data: bytes) -> Dict[str, Any]:
                 if study_date.month < birth_date.month or (study_date.month == birth_date.month and study_date.day < birth_date.day):
                     age -= 1
                 metadata["calculated_age"] = age
-            except:
+            except Exception:
                 metadata["calculated_age"] = None
         
         return metadata
