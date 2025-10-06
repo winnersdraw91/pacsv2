@@ -391,13 +391,24 @@ export default function DicomViewer() {
   };
 
   const drawCanvas = (canvas, viewportIndex = 0) => {
-    if (!canvas || !study) return;
+    if (!canvas || !study) {
+      console.log("🔄 DRAW CANVAS: Skipping draw - canvas or study not ready", { canvas: !!canvas, study: !!study });
+      return;
+    }
     
     const ctx = canvas.getContext("2d");
-    const width = canvas.width;
-    const height = canvas.height;
+    if (!ctx) {
+      console.error("❌ DRAW CANVAS: Failed to get 2d context from canvas");
+      return;
+    }
+    
+    const width = canvas.width || 800;
+    const height = canvas.height || 600;
     const viewport = viewports[viewportIndex] || viewports[0];
 
+    console.log(`🎨 DRAW CANVAS ${viewportIndex}: Drawing ${width}x${height} canvas, slice ${viewport.slice}, DICOM images available: ${Object.keys(dicomImages).length}`);
+
+    // Clear canvas with background color
     ctx.fillStyle = imageState.invert ? "#ffffff" : "#000000";
     ctx.fillRect(0, 0, width, height);
 
@@ -408,7 +419,13 @@ export default function DicomViewer() {
     if (imageState.flipH) ctx.scale(-1, 1);
     if (imageState.flipV) ctx.scale(1, -1);
 
-    renderDicomImage(ctx, width, height, viewport.slice);
+    try {
+      renderDicomImage(ctx, width, height, viewport.slice);
+      console.log(`✅ DRAW CANVAS ${viewportIndex}: Successfully rendered DICOM image for slice ${viewport.slice}`);
+    } catch (renderError) {
+      console.error(`❌ DRAW CANVAS ${viewportIndex}: Error rendering DICOM image:`, renderError);
+    }
+    
     ctx.restore();
 
     drawOverlayInfo(ctx, width, height, viewport.slice, viewportIndex);
