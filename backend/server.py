@@ -546,7 +546,7 @@ async def upload_dicom_study(
 
 @api_router.get("/studies", response_model=List[DicomStudy])
 async def get_studies(
-    status: Optional[str] = None,
+    study_status: Optional[str] = None,
     centre_id: Optional[str] = None,
     radiologist_id: Optional[str] = None,
     current_user: User = Depends(get_current_user)
