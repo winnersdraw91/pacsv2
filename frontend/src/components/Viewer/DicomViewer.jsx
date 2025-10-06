@@ -2004,7 +2004,10 @@ export default function DicomViewer() {
                       onMouseMove={(e) => handleMouseMove(e, idx)}
                       onMouseUp={handleMouseUp}
                       onMouseLeave={handleMouseUp}
-                      onWheel={(e) => handleWheel(e, idx)}
+                      onWheel={(e) => {
+                        e.preventDefault();
+                        handleWheel(e, idx);
+                      }}
                     />
                   </div>
                 ))}
