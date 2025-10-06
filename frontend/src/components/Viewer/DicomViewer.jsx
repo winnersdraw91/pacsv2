@@ -810,9 +810,18 @@ export default function DicomViewer() {
       const scaleX = columns / width;
       const scaleY = rows / height;
       
-      // Apply current window/level settings
-      const currentWindowCenter = imageState.windowLevel;
-      const currentWindowWidth = imageState.windowWidth;
+      // Apply current window/level settings - use DICOM values if UI values are default
+      let currentWindowCenter = imageState.windowLevel;
+      let currentWindowWidth = imageState.windowWidth;
+      
+      // If UI values are at defaults, use DICOM file's native values
+      if (imageState.windowLevel === 128 && imageState.windowWidth === 256) {
+        currentWindowCenter = windowCenter;
+        currentWindowWidth = windowWidth;
+        console.log(`🎯 RENDER SLICE ${slice}: Using DICOM native WL: ${currentWindowCenter}/${currentWindowWidth}`);
+      } else {
+        console.log(`🎯 RENDER SLICE ${slice}: Using UI WL: ${currentWindowCenter}/${currentWindowWidth}`);
+      }
       
       const windowMin = currentWindowCenter - currentWindowWidth / 2;
       const windowMax = currentWindowCenter + currentWindowWidth / 2;
