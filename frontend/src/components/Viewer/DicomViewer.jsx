@@ -429,7 +429,7 @@ export default function DicomViewer() {
       ctx.save();
       ctx.translate(200, 200);
       ctx.scale(1, 0.9);
-      generateMockDicomImage(ctx, 400, 400, coronalSlice);
+      renderDicomImage(ctx, 400, 400, coronalSlice);
       ctx.restore();
       
       if (showCrosshair) {
