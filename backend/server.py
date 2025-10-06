@@ -1030,6 +1030,177 @@ async def update_dicom_metadata(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update DICOM metadata: {str(e)}")
 
+# ==================== RADIOLOGIST DOWNLOAD/UPLOAD ROUTES ====================
+
+@api_router.get("/studies/{study_id}/download")
+async def download_study(study_id: str, current_user: User = Depends(get_current_user)):
+    """Download entire study as ZIP file"""
+    if current_user.role not in [UserRole.RADIOLOGIST, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Only radiologists can download studies")
+    
+    try:
+        # Get study details
+        study = await db.studies.find_one({"id": study_id})
+        if not study:
+            raise HTTPException(status_code=404, detail="Study not found")
+        
+        # Create ZIP file in memory
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # Add DICOM files
+            for file_id in study.get("file_ids", []):
+                try:
+                    from bson import ObjectId
+                    grid_out = await fs.open_download_stream(ObjectId(file_id))
+                    file_contents = await grid_out.read()
+                    filename = grid_out.filename or f"dicom_{file_id}.dcm"
+                    zip_file.writestr(f"DICOM/{filename}", file_contents)
+                except:
+                    continue
+            
+            # Add study metadata
+            study_metadata = {
+                "study_id": study_id,
+                "patient_name": study.get("patient_name"),
+                "patient_age": study.get("patient_age"),
+                "patient_gender": study.get("patient_gender"),
+                "modality": study.get("modality"),
+                "study_description": study.get("study_description"),
+                "uploaded_at": study.get("uploaded_at")
+            }
+            zip_file.writestr("metadata.json", json.dumps(study_metadata, indent=2, default=str))
+            
+            # Add AI report if available
+            ai_report = await db.ai_reports.find_one({"study_id": study_id})
+            if ai_report:
+                zip_file.writestr("ai_report.json", json.dumps(ai_report, indent=2, default=str))
+            
+            # Add final report if available
+            final_report = await db.reports.find_one({"study_id": study_id})
+            if final_report:
+                zip_file.writestr("final_report.json", json.dumps(final_report, indent=2, default=str))
+        
+        zip_buffer.seek(0)
+        
+        # Return ZIP file
+        return StreamingResponse(
+            io.BytesIO(zip_buffer.read()),
+            media_type="application/zip",
+            headers={"Content-Disposition": f"attachment; filename=study_{study_id}.zip"}
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to download study: {str(e)}")
+
+@api_router.post("/studies/upload-with-report")
+async def upload_study_with_report(
+    files: List[UploadFile] = File(...),
+    report_file: UploadFile = File(None),
+    patient_name: str = Form(...),
+    patient_age: int = Form(...),
+    patient_gender: str = Form(...),
+    modality: str = Form(...),
+    study_description: str = Form(""),
+    final_report_text: str = Form(""),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload DICOM study with final radiologist report"""
+    if current_user.role not in [UserRole.RADIOLOGIST, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Only radiologists can upload studies with reports")
+    
+    try:
+        # Generate study ID
+        study_id = generate_study_id()
+        
+        # Upload DICOM files and extract metadata
+        file_ids = []
+        dicom_metadata = {}
+        
+        for file in files:
+            content = await file.read()
+            
+            # Extract DICOM metadata from first DICOM file
+            if not dicom_metadata and file.filename.lower().endswith('.dcm'):
+                extracted_metadata = extract_dicom_metadata(content)
+                if extracted_metadata:
+                    dicom_metadata = extracted_metadata
+                    # Use DICOM metadata to override form data if available
+                    if extracted_metadata.get("patient_name"):
+                        patient_name = extracted_metadata["patient_name"]
+                    if extracted_metadata.get("patient_gender"):
+                        patient_gender = extracted_metadata["patient_gender"]
+                    if extracted_metadata.get("modality"):
+                        modality = extracted_metadata["modality"]
+                    if extracted_metadata.get("study_description"):
+                        study_description = extracted_metadata["study_description"]
+            
+            file_id = await fs.upload_from_stream(
+                f"{study_id}_{file.filename}",
+                io.BytesIO(content),
+                metadata={
+                    "study_id": study_id,
+                    "original_name": file.filename,
+                    "dicom_metadata": dicom_metadata if file.filename.lower().endswith('.dcm') else {}
+                }
+            )
+            file_ids.append(str(file_id))
+        
+        # Create study record
+        study_dict = {
+            "id": study_id,
+            "patient_name": patient_name,
+            "patient_age": patient_age,
+            "patient_gender": patient_gender,
+            "modality": modality,
+            "study_description": study_description,
+            "file_ids": file_ids,
+            "uploaded_by": current_user.id,
+            "uploaded_at": datetime.now(timezone.utc),
+            "status": "completed",  # Studies with reports are completed
+            "centre_id": getattr(current_user, 'centre_id', None),
+            "dicom_metadata": dicom_metadata
+        }
+        
+        await db.studies.insert_one(study_dict)
+        
+        # Create final report if provided
+        if final_report_text or report_file:
+            report_content = final_report_text
+            
+            # If report file is uploaded, read its content
+            if report_file:
+                report_file_content = await report_file.read()
+                if report_file.content_type == "application/json":
+                    report_data = json.loads(report_file_content.decode())
+                    report_content = report_data.get("content", report_file_content.decode())
+                else:
+                    report_content = report_file_content.decode()
+            
+            report_dict = {
+                "id": f"report_{generate_study_id()}",
+                "study_id": study_id,
+                "content": report_content,
+                "created_by": current_user.id,
+                "created_at": datetime.now(timezone.utc),
+                "status": "final",
+                "report_type": "radiologist_report"
+            }
+            
+            await db.reports.insert_one(report_dict)
+        
+        return {
+            "message": "Study uploaded successfully with report",
+            "study_id": study_id,
+            "file_count": len(file_ids),
+            "dicom_metadata_extracted": bool(dicom_metadata),
+            "final_report_created": bool(final_report_text or report_file)
+        }
+        
+    except Exception as e:
+        logging.error(f"Failed to upload study with report: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload study: {str(e)}")
+
 # ==================== DASHBOARD STATS ====================
 
 @api_router.get("/dashboard/stats")
