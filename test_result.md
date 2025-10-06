@@ -345,15 +345,13 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Backend validation errors in DicomStudy model"
-    - "Authentication issues for radiologist and technician users"
+    - "Frontend testing with resolved backend authentication"
+    - "End-to-end workflow validation"
   stuck_tasks: 
-    - "Radiologist Download/Upload Features"
-    - "Enhanced Upload Workflow with Auto-Fill"
     - "Radiologist Download/Upload Features Frontend"
     - "Technician Auto-Fill DICOM Metadata Frontend"
   test_all: false
-  test_priority: "stuck_first"
+  test_priority: "frontend_validation"
 
   - task: "Advanced Image Comparison"
     implemented: true
