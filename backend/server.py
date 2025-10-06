@@ -316,8 +316,8 @@ def extract_dicom_metadata(file_data: bytes) -> Dict[str, Any]:
 def modify_dicom_metadata(file_data: bytes, patient_updates: Dict[str, Any]) -> bytes:
     """Modify DICOM file metadata with updated patient information"""
     try:
-        # Parse DICOM data
-        ds = pydicom.dcmread(io.BytesIO(file_data))
+        # Parse DICOM data with force=True to handle files without proper DICM header
+        ds = pydicom.dcmread(io.BytesIO(file_data), force=True)
         
         # Update patient information if provided
         if "patient_name" in patient_updates:
