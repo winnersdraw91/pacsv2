@@ -374,6 +374,8 @@ test_plan:
   stuck_tasks: []
   test_all: false
   test_priority: "canvas_rendering_fix"
+  backend_auth_verified: true
+  dicom_file_serving_verified: true
 
   - task: "Advanced Image Comparison"
     implemented: true
