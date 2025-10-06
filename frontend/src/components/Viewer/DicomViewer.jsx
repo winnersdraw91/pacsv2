@@ -375,7 +375,7 @@ export default function DicomViewer() {
       ctx.fillRect(0, 0, 400, 400);
       ctx.save();
       ctx.translate(200, 200);
-      generateMockDicomImage(ctx, 400, 400, axialSlice);
+      renderDicomImage(ctx, 400, 400, axialSlice);
       ctx.restore();
       
       if (showCrosshair) {
