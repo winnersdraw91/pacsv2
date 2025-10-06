@@ -858,8 +858,10 @@ export default function DicomViewer() {
       ctx.fillText(`WL: ${Math.round(currentWindowCenter)}/${Math.round(currentWindowWidth)}`, 10, 40);
       ctx.fillText(`Real DICOM Data`, 10, 60);
       
+      console.log(`✅ RENDER SLICE ${slice}: Successfully rendered ${width}x${height} image with ${pixelData.length} pixels`);
+      
     } catch (error) {
-      console.error("Failed to render DICOM slice:", error);
+      console.error(`❌ RENDER SLICE ${slice}: Failed to render DICOM slice:`, error);
       // Fallback to mock image
       generateMockDicomImage(ctx, width, height, slice);
     }
